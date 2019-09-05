@@ -45,6 +45,7 @@ px4_add_board(
 		vmount
 		vtol_att_control
 		airspeed_selector
+		uuv_att_control
 
 	SYSTEMCMDS
 		#bl_update
