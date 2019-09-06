@@ -288,6 +288,8 @@ void UUVAttitudeControl::task_main()
 			vehicle_control_mode_poll();
 			manual_control_setpoint_poll();
 			battery_status_poll();
+            //PX4_INFO("att_setpoints x %8.4f",(double)_att_sp.thrust_body[0]);
+            //PX4_INFO("att_setpoints z %8.4f",(double)_att_sp.thrust_body[2]);
 
 			/* decide if in stabilized or full manual control */
 			if (_vcontrol_mode.flag_control_rates_enabled) {
@@ -301,10 +303,14 @@ void UUVAttitudeControl::task_main()
                     float thrust_body;
 
                     if(_parameters.is_direct_mode){
-                        roll_body = _parameters.direct_roll;
-                        pitch_body = _parameters.direct_pitch;
-                        yaw_body = _parameters.direct_yaw;
-                        thrust_body = _parameters.direct_thrust;
+                        //roll_body = _parameters.direct_roll;
+                        //pitch_body = _parameters.direct_pitch;
+                        //yaw_body = _parameters.direct_yaw;
+                        //thrust_body = _parameters.direct_thrust;
+                        roll_body = _att_sp.roll_body;
+                        pitch_body = _att_sp.pitch_body;
+                        yaw_body = _att_sp.yaw_body;
+                        thrust_body = _att_sp.thrust_body[0];
                     } else {
                         roll_body = _att_sp.roll_body;
                         pitch_body = _att_sp.pitch_body;

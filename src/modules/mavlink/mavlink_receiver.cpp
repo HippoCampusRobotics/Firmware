@@ -1403,6 +1403,9 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 						case MAV_TYPE_GROUND_ROVER:
 							att_sp.thrust_body[0] = set_attitude_target.thrust;
 							break;
+                        case MAV_TYPE_SUBMARINE:
+                            att_sp.thrust_body[0] = set_attitude_target.thrust;
+                            break;
 						}
 					}
 
@@ -1450,7 +1453,11 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 
 						case MAV_TYPE_GROUND_ROVER:
 							rates_sp.thrust_body[0] = set_attitude_target.thrust;
-							break;
+                                                        break;
+
+                        case MAV_TYPE_SUBMARINE:
+                            rates_sp.thrust_body[0] = set_attitude_target.thrust;
+                            break;
 						}
 
 					}
