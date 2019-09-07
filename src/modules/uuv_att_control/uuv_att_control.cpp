@@ -303,21 +303,22 @@ void UUVAttitudeControl::task_main()
                     float thrust_body;
 
                     if(_parameters.is_direct_mode){
-                        //roll_body = _parameters.direct_roll;
-                        //pitch_body = _parameters.direct_pitch;
-                        //yaw_body = _parameters.direct_yaw;
-                        //thrust_body = _parameters.direct_thrust;
-                        roll_body = _att_sp.roll_body;
-                        pitch_body = _att_sp.pitch_body;
-                        yaw_body = _att_sp.yaw_body;
-                        thrust_body = _att_sp.thrust_body[0];
+                        roll_body = _parameters.direct_roll;
+                        pitch_body = _parameters.direct_pitch;
+                        yaw_body = _parameters.direct_yaw;
+                        thrust_body = _parameters.direct_thrust;
+                        //roll_body = _att_sp.roll_body;
+                        //pitch_body = _att_sp.pitch_body;
+                        //yaw_body = _att_sp.yaw_body;
+                        //thrust_body = _att_sp.thrust_body[0];
                     } else {
                         roll_body = _att_sp.roll_body;
                         pitch_body = _att_sp.pitch_body;
                         yaw_body = _att_sp.yaw_body;
-                        thrust_body = -_att_sp.thrust_body[2];
+                        //thrust_body = -_att_sp.thrust_body[2];
+                        thrust_body = _att_sp.thrust_body[0];
                         // Map from [0,1] to [-1,1]
-                        thrust_body = thrust_body * 2 - 1;
+                        thrust_body = thrust_body;
                     }
                     //PX4_INFO("received thrust: %.4f", (double)thrust_body);
 
@@ -412,7 +413,7 @@ void UUVAttitudeControl::task_main()
 
                     /* throttle passed through if it is finite and if no engine failure was detected */
                     _actuators.control[actuator_controls_s::INDEX_THROTTLE] = thrust_body;
-                    //PX4_INFO("writing thrust %.4f", (double)thrust_body);
+                    PX4_INFO("writing thrust %.4f", (double)thrust_body);
 
                     if(_parameters.is_test_mode){
                     /* throttle passed through if it is finite and if no engine failure was detected */
