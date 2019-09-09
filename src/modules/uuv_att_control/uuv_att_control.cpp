@@ -43,6 +43,7 @@
 
 #include "uuv_att_control.hpp"
 
+
 /**
  * GroundRover attitude control app start / stop handling function
  *
@@ -78,6 +79,13 @@ UUVAttitudeControl::UUVAttitudeControl():
     _parameter_handles.yaw_d = param_find("UUV_YAW_D");
     _parameter_handles.yaw_imax = param_find("UUV_YAW_IMAX");
     _parameter_handles.yaw_ff = param_find("UUV_YAW_FF");
+
+    _parameter_handles.roll_geo_p = param_find("UUV_GEO_ROLL_P");
+    _parameter_handles.roll_geo_d = param_find("UUV_GEO_ROLL_D");
+    _parameter_handles.pitch_geo_p = param_find("UUV_GEO_PITCH_P");
+    _parameter_handles.pitch_geo_d = param_find("UUV_GEO_PITCH_D");
+    _parameter_handles.yaw_geo_p = param_find("UUV_GEO_YAW_P");
+    _parameter_handles.yaw_geo_d = param_find("UUV_GEO_YAW_D");
 
     _parameter_handles.test_roll = param_find("TEST_ROLL");
     _parameter_handles.test_pitch = param_find("TEST_PITCH");
@@ -141,6 +149,13 @@ void UUVAttitudeControl::parameters_update()
     param_get(_parameter_handles.yaw_d, &(_parameters.yaw_d));
     param_get(_parameter_handles.yaw_imax, &(_parameters.yaw_imax));
     param_get(_parameter_handles.yaw_ff, &(_parameters.yaw_ff));
+
+    param_get(_parameter_handles.roll_geo_p, &(_parameters.roll_geo_p));
+    param_get(_parameter_handles.roll_geo_d, &(_parameters.roll_geo_d));
+    param_get(_parameter_handles.pitch_geo_p, &(_parameters.pitch_geo_p));
+    param_get(_parameter_handles.pitch_geo_d, &(_parameters.pitch_geo_d));
+    param_get(_parameter_handles.yaw_geo_p, &(_parameters.yaw_geo_p));
+    param_get(_parameter_handles.yaw_geo_d, &(_parameters.yaw_geo_d));
 
     param_get(_parameter_handles.test_roll, &(_parameters.test_roll));
     param_get(_parameter_handles.test_pitch, &(_parameters.test_pitch));
@@ -302,7 +317,7 @@ void UUVAttitudeControl::task_main()
                     float yaw_body;
                     float thrust_body;
 
-                    if(_parameters.is_direct_mode){
+                    if(_parameters.is_direct_mode == 1){
                         roll_body = _parameters.direct_roll;
                         pitch_body = _parameters.direct_pitch;
                         yaw_body = _parameters.direct_yaw;
@@ -311,6 +326,12 @@ void UUVAttitudeControl::task_main()
                         //pitch_body = _att_sp.pitch_body;
                         //yaw_body = _att_sp.yaw_body;
                         //thrust_body = _att_sp.thrust_body[0];
+                    } else if (_parameters.is_direct_mode == 2) {
+                        roll_body = _att_sp.roll_body;
+                        pitch_body = _att_sp.pitch_body;
+                        yaw_body = _att_sp.yaw_body;
+
+                        thrust_body = _att_sp.thrust_body[0];
                     } else {
                         roll_body = _att_sp.roll_body;
                         pitch_body = _att_sp.pitch_body;
@@ -318,17 +339,75 @@ void UUVAttitudeControl::task_main()
                         //thrust_body = -_att_sp.thrust_body[2];
                         thrust_body = _att_sp.thrust_body[0];
                         // Map from [0,1] to [-1,1]
-                        thrust_body = thrust_body;
+                        //thrust_body = thrust_body;
                     }
                     //PX4_INFO("received thrust: %.4f", (double)thrust_body);
-
+                    float roll_u = 0.0;
+                    float pitch_u = 0.0;
+                    float yaw_u = 0.0;
+                    float thrust_u = 0.0f;
                     // euler_angles.psi() += _parameters.test_roll;
 
-                    /* Calculate the control output for the steering as yaw */
-                    float roll_u = pid_calculate(&_roll_ctrl, roll_body, euler_angles.phi(), _angular_velocity.xyz[0], deltaT);
-                    float pitch_u = pid_calculate(&_pitch_ctrl, pitch_body, euler_angles.theta(), _angular_velocity.xyz[1], deltaT);
-                    float yaw_u = pid_calculate(&_yaw_ctrl, yaw_body, euler_angles.psi(), _angular_velocity.xyz[2], deltaT);
+                    // Geometric Controller
+                    if (_parameters.is_direct_mode == 2) {
+                        roll_body = _att_sp.roll_body;
+                        pitch_body = _att_sp.pitch_body;
+                        yaw_body = _att_sp.yaw_body;
 
+                        /* geometric control start */
+                        // Matrix3f _R_sp;
+
+                        /* get attitude setpoint rotational matrix */
+
+                        Dcmf _rot_des = Eulerf(_att_sp.roll_body,
+                                              _att_sp.pitch_body,
+                                              _att_sp.yaw_body);
+                        ///Dcmf _rot_att = dcm(_att.q);
+
+                        /* get current rotation matrix from control state quaternions */
+                        Quatf q_att(_att.q[0], _att.q[1], _att.q[2], _att.q[3]);
+                        Matrix3f _rot_att = q_att.to_dcm();
+
+                        Vector3f e_R_vec;
+                        Vector3f torques;
+                        Vector3f omega;
+
+                        //_angular_velocity.xyz[0]
+                        /* get current rates from sensors */
+                        //omega(0) = _v_att.rollspeed;
+                        //omega(1) = _v_att.pitchspeed;
+                        //omega(2) = _v_att.yawspeed;
+
+                        /* Compute matrix: attitude error */
+                        Matrix3f e_R =  (_rot_des.transpose() * _rot_att - _rot_att.transpose() * _rot_des) * 0.5;
+
+
+                        /* vee-map the error to get a vector instead of matrix e_R */
+                        e_R_vec(0) = e_R(2,1);  // Roll
+                        e_R_vec(1) = e_R(0,2);  // Pitch
+                        e_R_vec(2) = e_R(1,0);  // Yaw
+
+                        /**< P-Control */
+                        torques(0) = e_R_vec(0) * _parameters.roll_geo_p;   /**< Roll  */
+                        torques(1) = e_R_vec(1) * _parameters.pitch_geo_p;  /**< Pitch */
+                        torques(2) = e_R_vec(2) * _parameters.yaw_geo_p;    /**< Yaw   */
+
+                        /**< PD-Control */
+                        torques(0) = torques(0) - omega(0) * _parameters.roll_geo_p;  /**< Roll  */
+                        torques(1) = torques(1) - omega(1) * _parameters.pitch_geo_d; /**< Pitch */
+                        torques(2) = torques(2) - omega(2) * _parameters.yaw_geo_d;   /**< Yaw   */
+
+                        /* geometric control end */
+                        thrust_u = _att_sp.thrust_body[0];
+
+                    } else {
+                    /* regular PID-Controller */
+                    /* Calculate the control output for the steering as yaw */
+                    roll_u = pid_calculate(&_roll_ctrl, roll_body, euler_angles.phi(), _angular_velocity.xyz[0], deltaT);
+                    pitch_u = pid_calculate(&_pitch_ctrl, pitch_body, euler_angles.theta(), _angular_velocity.xyz[1], deltaT);
+                    yaw_u = pid_calculate(&_yaw_ctrl, yaw_body, euler_angles.psi(), _angular_velocity.xyz[2], deltaT);
+                    thrust_u = thrust_body;
+                    }
                     float roll_angle_diff = 0.0f;
                     float pitch_angle_diff = 0.0f;
                     float yaw_angle_diff = 0.0f;
@@ -412,8 +491,8 @@ void UUVAttitudeControl::task_main()
                     }
 
                     /* throttle passed through if it is finite and if no engine failure was detected */
-                    _actuators.control[actuator_controls_s::INDEX_THROTTLE] = thrust_body;
-                    PX4_INFO("writing thrust %.4f", (double)thrust_body);
+                    _actuators.control[actuator_controls_s::INDEX_THROTTLE] = thrust_u;
+                    PX4_INFO("writing thrust %.4f", (double)thrust_u);
 
                     if(_parameters.is_test_mode){
                     /* throttle passed through if it is finite and if no engine failure was detected */

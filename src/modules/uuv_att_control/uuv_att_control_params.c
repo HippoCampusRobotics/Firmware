@@ -127,11 +127,45 @@ PARAM_DEFINE_FLOAT(UUV_YAW_IMAX, 5.0f);
  */
 PARAM_DEFINE_FLOAT(UUV_YAW_FF, 0.0f);
 
-//Test Inputs
-/**
- * Enable test mode
+
+/*
+ * Geometric Controller parameters, accessible via MAVLink
+ *
  */
-PARAM_DEFINE_INT32(IS_TEST_MODE, 0);
+
+// Geo Roll gains
+/**
+ * Roll proportional gain
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_ROLL_P, 1.0f);
+
+/**
+ * Geo Roll differential gain
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_ROLL_D, 1.0f);
+
+
+// Geo Pitch gains
+/**
+ * Geo Pitch proportional gain
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_PITCH_P, 1.0f);
+
+/**
+ * Geo Pitch differential gain
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_PITCH_D, 1.0f);
+
+// Geo Yaw gains
+/**
+ * Geo Yaw proportional gain
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_YAW_P, 1.0f);
+
+/**
+ * Geo Yaw differential gain
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_YAW_D, 1.0f);
 
 /**
  * Test roll input

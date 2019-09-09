@@ -65,6 +65,9 @@
 
 using matrix::Eulerf;
 using matrix::Quatf;
+using matrix::Matrix3f;
+using matrix::Vector3f;
+using matrix::Dcmf;
 
 class UUVAttitudeControl
 {
@@ -122,6 +125,13 @@ private:
         float yaw_imax;
         float yaw_ff;
 
+        float roll_geo_p;
+        float roll_geo_d;
+        float pitch_geo_p;
+        float pitch_geo_d;
+        float yaw_geo_p;
+        float yaw_geo_d;
+
         float test_roll;
         float test_pitch;
         float test_yaw;
@@ -131,7 +141,7 @@ private:
         float direct_pitch;
         float direct_yaw;
         float direct_thrust;
-        bool is_direct_mode;
+        int is_direct_mode;
 	} _parameters{};			/**< local copies of interesting parameters */
 
 	struct {
@@ -150,6 +160,13 @@ private:
         param_t yaw_d;
         param_t yaw_imax;
         param_t yaw_ff;
+
+        param_t roll_geo_p;
+        param_t roll_geo_d;
+        param_t pitch_geo_p;
+        param_t pitch_geo_d;
+        param_t yaw_geo_p;
+        param_t yaw_geo_d;
 
         param_t test_roll;
         param_t test_pitch;
