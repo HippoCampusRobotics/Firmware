@@ -132,6 +132,11 @@ private:
         float yaw_geo_p;
         float yaw_geo_d;
 
+        float roll_geo_max;
+        float pitch_geo_max;
+        float yaw_geo_max;
+        float thrust_geo_max;
+
         float test_roll;
         float test_pitch;
         float test_yaw;
@@ -167,6 +172,11 @@ private:
         param_t pitch_geo_d;
         param_t yaw_geo_p;
         param_t yaw_geo_d;
+
+        param_t roll_geo_max;
+        param_t pitch_geo_max;
+        param_t yaw_geo_max;
+        param_t thrust_geo_max;
 
         param_t test_roll;
         param_t test_pitch;

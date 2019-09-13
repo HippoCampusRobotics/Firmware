@@ -87,6 +87,11 @@ UUVAttitudeControl::UUVAttitudeControl():
     _parameter_handles.yaw_geo_p = param_find("UUV_GEO_YAW_P");
     _parameter_handles.yaw_geo_d = param_find("UUV_GEO_YAW_D");
 
+    _parameter_handles.roll_geo_max = param_find("UUV_GEO_X_ROLL");
+    _parameter_handles.pitch_geo_max = param_find("UUV_GEO_X_PITCH");
+    _parameter_handles.yaw_geo_max = param_find("UUV_GEO_X_YAW");
+    _parameter_handles.thrust_geo_max = param_find("UUV_GEO_X_THRUST");
+
     _parameter_handles.test_roll = param_find("TEST_ROLL");
     _parameter_handles.test_pitch = param_find("TEST_PITCH");
     _parameter_handles.test_yaw = param_find("TEST_YAW");
@@ -156,6 +161,11 @@ void UUVAttitudeControl::parameters_update()
     param_get(_parameter_handles.pitch_geo_d, &(_parameters.pitch_geo_d));
     param_get(_parameter_handles.yaw_geo_p, &(_parameters.yaw_geo_p));
     param_get(_parameter_handles.yaw_geo_d, &(_parameters.yaw_geo_d));
+
+    param_get(_parameter_handles.roll_geo_max, &(_parameters.roll_geo_max));
+    param_get(_parameter_handles.pitch_geo_max, &(_parameters.pitch_geo_max));
+    param_get(_parameter_handles.yaw_geo_max, &(_parameters.yaw_geo_max));
+    param_get(_parameter_handles.thrust_geo_max, &(_parameters.thrust_geo_max));
 
     param_get(_parameter_handles.test_roll, &(_parameters.test_roll));
     param_get(_parameter_handles.test_pitch, &(_parameters.test_pitch));
@@ -387,73 +397,86 @@ void UUVAttitudeControl::task_main()
                         e_R_vec(1) = e_R(0,2);  // Pitch
                         e_R_vec(2) = e_R(1,0);  // Yaw
 
+                        omega(0) = _angular_velocity.xyz[0] - 0.0f;
+                        omega(1) = _angular_velocity.xyz[1] - 0.0f;
+                        omega(2) = _angular_velocity.xyz[2] - 0.0f;
+
                         /**< P-Control */
-                        torques(0) = e_R_vec(0) * _parameters.roll_geo_p;   /**< Roll  */
-                        torques(1) = e_R_vec(1) * _parameters.pitch_geo_p;  /**< Pitch */
-                        torques(2) = e_R_vec(2) * _parameters.yaw_geo_p;    /**< Yaw   */
+                        torques(0) = - e_R_vec(0) * _parameters.roll_geo_p;   /**< Roll  */
+                        torques(1) = - e_R_vec(1) * _parameters.pitch_geo_p;  /**< Pitch */
+                        torques(2) = - e_R_vec(2) * _parameters.yaw_geo_p;    /**< Yaw   */
 
                         /**< PD-Control */
                         torques(0) = torques(0) - omega(0) * _parameters.roll_geo_p;  /**< Roll  */
                         torques(1) = torques(1) - omega(1) * _parameters.pitch_geo_d; /**< Pitch */
                         torques(2) = torques(2) - omega(2) * _parameters.yaw_geo_d;   /**< Yaw   */
-
+                        roll_u = torques(0);
+                        pitch_u = torques(1);
+                        yaw_u = torques(2);
                         /* geometric control end */
                         thrust_u = _att_sp.thrust_body[0];
 
                     } else {
-                    /* regular PID-Controller */
-                    /* Calculate the control output for the steering as yaw */
-                    roll_u = pid_calculate(&_roll_ctrl, roll_body, euler_angles.phi(), _angular_velocity.xyz[0], deltaT);
-                    pitch_u = pid_calculate(&_pitch_ctrl, pitch_body, euler_angles.theta(), _angular_velocity.xyz[1], deltaT);
-                    yaw_u = pid_calculate(&_yaw_ctrl, yaw_body, euler_angles.psi(), _angular_velocity.xyz[2], deltaT);
-                    thrust_u = thrust_body;
-                    }
-                    float roll_angle_diff = 0.0f;
-                    float pitch_angle_diff = 0.0f;
-                    float yaw_angle_diff = 0.0f;
+                        /* regular PID-Controller */
+                        /* Calculate the control output for the steering as yaw */
+                        roll_u = pid_calculate(&_roll_ctrl, roll_body, euler_angles.phi(), _angular_velocity.xyz[0], deltaT);
+                        pitch_u = pid_calculate(&_pitch_ctrl, pitch_body, euler_angles.theta(), _angular_velocity.xyz[1], deltaT);
+                        yaw_u = pid_calculate(&_yaw_ctrl, yaw_body, euler_angles.psi(), _angular_velocity.xyz[2], deltaT);
+                        thrust_u = thrust_body;
 
-                    if (roll_body * euler_angles.phi() < 0.0f) {
-                        if (roll_body < 0.0f) {
-                            roll_angle_diff = euler_angles.phi() - roll_body ;
+                        float roll_angle_diff = 0.0f;
+                        float pitch_angle_diff = 0.0f;
+                        float yaw_angle_diff = 0.0f;
 
-                        } else {
-                            roll_angle_diff = roll_body - euler_angles.phi();
+                        if (roll_body * euler_angles.phi() < 0.0f) {
+                            if (roll_body < 0.0f) {
+                                roll_angle_diff = euler_angles.phi() - roll_body ;
+
+                            } else {
+                                roll_angle_diff = roll_body - euler_angles.phi();
+                            }
+
+                            // a switch might have happened
+                            if ((double)roll_angle_diff > M_PI) {
+                                roll_u = -roll_u;
+                            }
                         }
+                        if (pitch_body * euler_angles.theta() < 0.0f) {
+                            if (pitch_body < 0.0f) {
+                                pitch_angle_diff = euler_angles.theta() - pitch_body ;
 
-                        // a switch might have happened
-                        if ((double)roll_angle_diff > M_PI) {
-                            roll_u = -roll_u;
+                            } else {
+                                pitch_angle_diff = pitch_body - euler_angles.theta();
+                            }
+
+                            // a switch might have happened
+                            if ((double)pitch_angle_diff > M_PI) {
+                                pitch_u = -pitch_u;
+                            }
                         }
-                    }
-                    if (pitch_body * euler_angles.theta() < 0.0f) {
-                        if (pitch_body < 0.0f) {
-                            pitch_angle_diff = euler_angles.theta() - pitch_body ;
+                        if (yaw_body * euler_angles.psi() < 0.0f) {
+                            if (yaw_body < 0.0f) {
+                                yaw_angle_diff = euler_angles.psi() - yaw_body ;
 
-                        } else {
-                            pitch_angle_diff = pitch_body - euler_angles.theta();
-                        }
+                            } else {
+                                yaw_angle_diff = yaw_body - euler_angles.psi();
+                            }
 
-                        // a switch might have happened
-                        if ((double)pitch_angle_diff > M_PI) {
-                            pitch_u = -pitch_u;
-                        }
-                    }
-                    if (yaw_body * euler_angles.psi() < 0.0f) {
-                        if (yaw_body < 0.0f) {
-                            yaw_angle_diff = euler_angles.psi() - yaw_body ;
-
-                        } else {
-                            yaw_angle_diff = yaw_body - euler_angles.psi();
-                        }
-
-                        // a switch might have happened
-                        if ((double)yaw_angle_diff > M_PI) {
-                            yaw_u = -yaw_u;
+                            // a switch might have happened
+                            if ((double)yaw_angle_diff > M_PI) {
+                                yaw_u = -yaw_u;
+                            }
                         }
                     }
 
 
                     if (PX4_ISFINITE(roll_u)) {
+                        if (roll_u >_parameters.roll_geo_max){
+                            roll_u = _parameters.roll_geo_max;
+                        }else if(roll_u < -_parameters.roll_geo_max){
+                            roll_u = -_parameters.roll_geo_max;
+                        }
+
                         _actuators.control[actuator_controls_s::INDEX_ROLL] = roll_u;
                         //PX4_INFO("writing roll %.4f", (double)roll_u);
                     } else {
@@ -466,8 +489,13 @@ void UUVAttitudeControl::task_main()
                         }
                     }
                     if (PX4_ISFINITE(pitch_u)) {
+                        if (pitch_u >_parameters.pitch_geo_max){
+                            pitch_u = _parameters.pitch_geo_max;
+                        }else if(pitch_u < -_parameters.pitch_geo_max){
+                            pitch_u = -_parameters.pitch_geo_max;
+                        }
                         _actuators.control[actuator_controls_s::INDEX_PITCH] = pitch_u;
-                        //PX4_INFO("writing pitch %.4f", (double)pitch_u);
+                        PX4_ERR("writing pitch %.4f", (double)pitch_u);
                     } else {
                         _actuators.control[actuator_controls_s::INDEX_PITCH] = 0.0f;
 
@@ -478,6 +506,11 @@ void UUVAttitudeControl::task_main()
                         }
                     }
                     if (PX4_ISFINITE(yaw_u)) {
+                        if (yaw_u >_parameters.yaw_geo_max){
+                            yaw_u = _parameters.yaw_geo_max;
+                        }else if(yaw_u < -_parameters.yaw_geo_max){
+                            yaw_u = -_parameters.yaw_geo_max;
+                        }
                         _actuators.control[actuator_controls_s::INDEX_YAW] = yaw_u;
                         //PX4_INFO("writing yaw %.4f", (double)yaw_u);
                     } else {

@@ -168,6 +168,26 @@ PARAM_DEFINE_FLOAT(UUV_GEO_YAW_P, 1.0f);
 PARAM_DEFINE_FLOAT(UUV_GEO_YAW_D, 1.0f);
 
 /**
+ * Geo Roll Max
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_X_ROLL, 1.0f);
+
+/**
+ * Geo Pitch Max
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_X_PITCH, 1.0f);
+
+/**
+ * Geo Yaw Max
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_X_YAW, 1.0f);
+
+/**
+ * Geo Thrust Max
+ */
+PARAM_DEFINE_FLOAT(UUV_GEO_X_THRUST, 1.0f);
+
+/**
  * Test roll input
  */
 PARAM_DEFINE_FLOAT(TEST_ROLL, 0.0f);
