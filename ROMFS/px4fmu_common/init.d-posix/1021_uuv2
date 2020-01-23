@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# @name UUV
+#
+
+sh /etc/init.d/rc.uuv2_defaults
+
+if [ $AUTOCNF = yes ]
+then
+	# disable circuit breaker for airspeed sensor
+	param set CBRK_AIRSPD_CHK 162128
+	param set NAV_DLL_ACT 4
+	#param set CBRK_GPSFAIL 240024
+fi
+
+
+set MAV_TYPE 12
+
+set MIXER uuv2_sitl
