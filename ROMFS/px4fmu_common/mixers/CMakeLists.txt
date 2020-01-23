@@ -85,5 +85,5 @@ px4_add_romfs_files(
 	wingwing.main.mix
 	zmr250.main.mix
 	uuv2.main.mix
-	uux2_sitl.main.mix
+	uuv2_sitl.main.mix
 )

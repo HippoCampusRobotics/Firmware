@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file gnd_att_control_params.c
+ * @file uuv_att_control_params.c
  *
  * Parameters defined by the attitude control task for ground rovers
  *
@@ -168,55 +168,37 @@ PARAM_DEFINE_FLOAT(UUV_GEO_YAW_P, 1.0f);
 PARAM_DEFINE_FLOAT(UUV_GEO_YAW_D, 1.0f);
 
 /**
- * Geo Roll Max
+ * Actuator Roll Max
  */
-PARAM_DEFINE_FLOAT(UUV_GEO_X_ROLL, 1.0f);
+PARAM_DEFINE_FLOAT(UUV_ACT_X_ROLL, 1.0f);
 
 /**
- * Geo Pitch Max
+ * Actuator Pitch Max
  */
-PARAM_DEFINE_FLOAT(UUV_GEO_X_PITCH, 1.0f);
+PARAM_DEFINE_FLOAT(UUV_ACT_X_PITCH, 1.0f);
 
 /**
- * Geo Yaw Max
+ * Actuator Yaw Max
  */
-PARAM_DEFINE_FLOAT(UUV_GEO_X_YAW, 1.0f);
+PARAM_DEFINE_FLOAT(UUV_ACT_X_YAW, 1.0f);
 
 /**
- * Geo Thrust Max
+ * Actuator Thrust Max
  */
-PARAM_DEFINE_FLOAT(UUV_GEO_X_THRUST, 1.0f);
+PARAM_DEFINE_FLOAT(UUV_ACT_X_THRUST, 1.0f);
+
+
+// Input / Control Modes
 
 /**
- * Test roll input
+ * Select Control Mode
  */
-PARAM_DEFINE_FLOAT(TEST_ROLL, 0.0f);
+PARAM_DEFINE_INT32(CONTROL_MODE, 0);
 
 /**
- * Test pitch input
+ * Select Input Mode
  */
-PARAM_DEFINE_FLOAT(TEST_PITCH, 0.0f);
-
-/**
- * Test yaw input
- */
-PARAM_DEFINE_FLOAT(TEST_YAW, 0.0f);
-
-/**
- * Test thrust input
- */
-PARAM_DEFINE_FLOAT(TEST_THRUST, 0.0f);
-
-//Direct Inputs
-/**
- * Enable direct mode
- */
-PARAM_DEFINE_INT32(IS_DIRECT_MODE, 0);
-
-/**
- * Enable test mode
- */
-PARAM_DEFINE_INT32(IS_TEST_MODE, 0);
+PARAM_DEFINE_INT32(INPUT_MODE, 0);
 
 /**
  * Direct roll input

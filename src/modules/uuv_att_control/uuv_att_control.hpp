@@ -38,38 +38,57 @@
  *
  * All the acknowledgments and credits for the fw wing app are reported in those files.
  *
+ * @author Daniel Duecker <daniel.duecker@tuhh.de>
  * @author Philipp Hastedt <mail>
  */
 
-// #include <px4_config.h>
-// #include <px4_defines.h>
-// #include <px4_tasks.h>
-// #include <px4_posix.h>
-
+/* check necessary */
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <iterator>
 #include <vector>
+#include <string>
+#include <limits.h>
+#include <unistd.h>
 
+/* from "rover"-module */
+#include <float.h>
 
 #include <drivers/drv_hrt.h>
-#include <mathlib/mathlib.h>
+#include <lib/ecl/geo/geo.h>
+//#include <lib/ecl/l1/ecl_l1_pos_controller.h>
+#include <lib/mathlib/mathlib.h>
+#include <lib/perf/perf_counter.h>
+#include <lib/pid/pid.h>
 #include <matrix/math.hpp>
-#include <parameters/param.h>
-#include <pid/pid.h>
-#include <perf/perf_counter.h>
-#include <uORB/topics/actuator_controls.h>
-#include <uORB/topics/battery_status.h>
+#include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/defines.h>
+#include <px4_platform_common/posix.h>
+#include <px4_platform_common/tasks.h>
+#include <px4_platform_common/module.h>
+#include <px4_platform_common/module_params.h>
+#include <uORB/Subscription.hpp>
+#include <uORB/Publication.hpp>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/parameter_update.h>
-#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/position_controller_status.h>
+#include <uORB/topics/position_setpoint_triplet.h>
+#include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
-#include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_control_mode.h>
-#include <uORB/topics/vehicle_rates_setpoint.h>
+#include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/ekf2_timestamps.h>
 #include <uORB/uORB.h>
+
+
+#include <uORB/topics/vehicle_angular_velocity.h>
+#include <uORB/topics/vehicle_rates_setpoint.h>
+
 
 using matrix::Eulerf;
 using matrix::Quatf;
@@ -77,141 +96,165 @@ using matrix::Matrix3f;
 using matrix::Vector3f;
 using matrix::Dcmf;
 
-class UUVAttitudeControl
+using uORB::SubscriptionData;
+
+class UUVAttitudeControl: public ModuleBase<UUVAttitudeControl>, public ModuleParams
 {
 public:
     UUVAttitudeControl();
     ~UUVAttitudeControl();
 
-	int start();
-	bool task_running() { return _task_running; }
+    UUVAttitudeControl(const UUVAttitudeControl &) = delete;
+	UUVAttitudeControl operator=(const UUVAttitudeControl &other) = delete;
+
+
+	/** @see ModuleBase */
+	static int task_spawn(int argc, char *argv[]);
+
+	/** @see ModuleBase */
+	static UUVAttitudeControl *instantiate(int argc, char *argv[]);
+
+	static int custom_command(int argc, char *argv[]);
+
+	/** @see ModuleBase */
+	static int print_usage(const char *reason = nullptr);
+
+	/** @see ModuleBase::run() */
+	void run() override;
+
+
+//	int start();
+//	bool task_running() { return _task_running; }
 
 private:
+    uORB::Publication<position_controller_status_s>	_pos_ctrl_status_pub{ORB_ID(position_controller_status)};
+	uORB::Publication<actuator_controls_s>		    _actuator_controls_pub{ORB_ID(actuator_controls_0)};
 
-    bool    _task_should_exit{false};	/**< if true, attitude control task should exit */
-    bool    _task_running{false};		/**< if true, task is running in its mainloop */
-    int     _control_task{-1};			/**< task handle */
+    uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
 
-    int     _att_sp_sub{-1};			/**< vehicle attitude setpoint */
+//    bool    _task_should_exit{false};	/**< if true, attitude control task should exit */
+//    bool    _task_running{false};		/**< if true, task is running in its mainloop */
+//    int     _control_task{-1};			/**< task handle */
+
+    int     _vehicle_attitude_sp_sub{-1};			/**< vehicle attitude setpoint */
     int     _battery_status_sub{-1};	/**< battery status subscription */
-    int     _att_sub{-1};               /**< control state subscription */
+    int     _vehicle_attitude_sub{-1};               /**< control state subscription */
     int     _angular_velocity_sub{-1};  /**< vehicle angular velocity subscription */
     int     _local_pos_sub{-1};         /**< local position subscription */
-    int     _manual_sub{-1};			/**< notification of manual control updates */
-    int     _params_sub{-1};			/**< notification of parameter updates */
+    int     _global_pos_sub{-1};        /**< global position subscription */
+    int     _manual_control_sub{-1};			/**< notification of manual control updates */
+//    int     _params_sub{-1};			/**< notification of parameter updates */
     int     _vcontrol_mode_sub{-1};		/**< vehicle status subscription */
-
-    orb_advert_t _actuators_0_pub{nullptr};		/**< actuator control group 0 setpoint */
+    int     _sensor_combined_sub{-1};   /**< sensor combined subscription */
 
     actuator_controls_s         _actuators {};		/**< actuator control inputs */
-    battery_status_s			_battery_status {};	/**< battery status */
     manual_control_setpoint_s	_manual {};         /**< r/c channel data */
-    vehicle_attitude_s			_att {};            /**< control state */
+    vehicle_attitude_s			_vehicle_attitude {};            /**< control state */
     vehicle_angular_velocity_s  _angular_velocity{};/**< angular velocity */
-    vehicle_attitude_setpoint_s	_att_sp {};         /**< vehicle attitude setpoint */
-    vehicle_local_position_s	_local_pos {};         /**< vehicle attitude setpoint */
+    vehicle_attitude_setpoint_s	_vehicle_attitude_sp {};         /**< vehicle attitude setpoint */
+    vehicle_local_position_s	_local_pos {};      /**< vehicle attitude setpoint */
+    vehicle_global_position_s	_global_pos{};		/**< global vehicle position */
     vehicle_control_mode_s		_vcontrol_mode {};	/**< vehicle control mode */
+    sensor_combined_s			_sensor_combined{};
+
+
+    SubscriptionData<vehicle_acceleration_s>		_vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
+    hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
 
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
-	perf_counter_t	_nonfinite_input_perf;		/**< performance counter for non finite input */
-	perf_counter_t	_nonfinite_output_perf;		/**< performance counter for non finite output */
+	//perf_counter_t	_nonfinite_input_perf;		/**< performance counter for non finite input */
+	//perf_counter_t	_nonfinite_output_perf;		/**< performance counter for non finite output */
 
-    bool _debug{false};	/**< if set to true, print debug output */
-
-	struct {
-        float roll_p;
-        float roll_i;
-        float roll_d;
-        float roll_imax;
-        float roll_ff;
-        float pitch_p;
-        float pitch_i;
-        float pitch_d;
-        float pitch_imax;
-        float pitch_ff;
-        float yaw_p;
-        float yaw_i;
-        float yaw_d;
-        float yaw_imax;
-        float yaw_ff;
-
-        float roll_geo_p;
-        float roll_geo_d;
-        float pitch_geo_p;
-        float pitch_geo_d;
-        float yaw_geo_p;
-        float yaw_geo_d;
-
-        float roll_geo_max;
-        float pitch_geo_max;
-        float yaw_geo_max;
-        float thrust_geo_max;
-
-        float test_roll;
-        float test_pitch;
-        float test_yaw;
-        float test_thrust;
-        bool is_test_mode;
-        float direct_roll;
-        float direct_pitch;
-        float direct_yaw;
-        float direct_thrust;
-        int is_direct_mode;
-	} _parameters{};			/**< local copies of interesting parameters */
-
-	struct {
-        param_t roll_p;
-        param_t roll_i;
-        param_t roll_d;
-        param_t roll_imax;
-        param_t roll_ff;
-        param_t pitch_p;
-        param_t pitch_i;
-        param_t pitch_d;
-        param_t pitch_imax;
-        param_t pitch_ff;
-        param_t yaw_p;
-        param_t yaw_i;
-        param_t yaw_d;
-        param_t yaw_imax;
-        param_t yaw_ff;
-
-        param_t roll_geo_p;
-        param_t roll_geo_d;
-        param_t pitch_geo_p;
-        param_t pitch_geo_d;
-        param_t yaw_geo_p;
-        param_t yaw_geo_d;
-
-        param_t roll_geo_max;
-        param_t pitch_geo_max;
-        param_t yaw_geo_max;
-        param_t thrust_geo_max;
-
-        param_t test_roll;
-        param_t test_pitch;
-        param_t test_yaw;
-        param_t test_thrust;
-        param_t is_test_mode;
-        param_t direct_roll;
-        param_t direct_pitch;
-        param_t direct_yaw;
-        param_t direct_thrust;
-        param_t is_direct_mode;
-
-	} _parameter_handles{};		/**< handles for interesting parameters */
-
+    /* PID Controller for roll, pitch, yaw*/
     PID_t _roll_ctrl{};
     PID_t _pitch_ctrl{};
     PID_t _yaw_ctrl{};
 
-    //Class Methods
-    void parameters_update();
-    void vehicle_control_mode_poll();
-    void manual_control_setpoint_poll();
-    void vehicle_local_position_poll();
-    void vehicle_attitude_setpoint_poll();
-    void battery_status_poll();
-    void task_main();
-    static int task_main_trampoline(int argc, char *argv[]);
+
+    // estimator reset counters
+	uint8_t _pos_reset_counter{0};		// captures the number of times the estimator has reset the horizontal position
+
+
+    enum UUV_ATTCTRL_MODE {
+		UUV_ATTCTRL_MODE_AUTO,
+		UUV_ATTCTRL_MODE_OTHER
+	} _control_mode_current{UUV_ATTCTRL_MODE_OTHER};			///< used to check the mode in the last control loop iteration. Use to check if the last iteration was in the same mode.
+
+    bool _debug{false};	/**< if set to true, print debug output */
+    int loop_counter = 0;
+
+    DEFINE_PARAMETERS(
+		(ParamInt<px4::params::GND_SP_CTRL_MODE>) _param_speed_control_mode,
+		(ParamFloat<px4::params::GND_SPEED_P>) _param_speed_p,
+		(ParamFloat<px4::params::GND_SPEED_I>) _param_speed_i,
+		(ParamFloat<px4::params::GND_SPEED_D>) _param_speed_d,
+
+		(ParamFloat<px4::params::GND_THR_MIN>) _param_throttle_min,
+		(ParamFloat<px4::params::GND_THR_MAX>) _param_throttle_max,
+        (ParamFloat<px4::params::GND_THR_CRUISE>) _param_throttle_cruise,
+
+        (ParamFloat<px4::params::UUV_ROLL_P>) _param_roll_p,
+		(ParamFloat<px4::params::UUV_ROLL_I>) _param_roll_i,
+		(ParamFloat<px4::params::UUV_ROLL_D>) _param_roll_d,
+        (ParamFloat<px4::params::UUV_ROLL_IMAX>) _param_roll_imax,
+        (ParamFloat<px4::params::UUV_ROLL_FF>) _param_roll_ff,
+
+        (ParamFloat<px4::params::UUV_PITCH_P>) _param_pitch_p,
+		(ParamFloat<px4::params::UUV_PITCH_I>) _param_pitch_i,
+		(ParamFloat<px4::params::UUV_PITCH_D>) _param_pitch_d,
+        (ParamFloat<px4::params::UUV_PITCH_IMAX>) _param_pitch_imax,
+        (ParamFloat<px4::params::UUV_PITCH_FF>) _param_pitch_ff,
+
+        (ParamFloat<px4::params::UUV_YAW_P>) _param_yaw_p,
+		(ParamFloat<px4::params::UUV_YAW_I>) _param_yaw_i,
+		(ParamFloat<px4::params::UUV_YAW_D>) _param_yaw_d,
+        (ParamFloat<px4::params::UUV_YAW_IMAX>) _param_yaw_imax,
+        (ParamFloat<px4::params::UUV_YAW_FF>) _param_yaw_ff,
+
+        // geometric controller
+        (ParamFloat<px4::params::UUV_GEO_ROLL_P>) _param_geo_roll_p,
+        (ParamFloat<px4::params::UUV_GEO_ROLL_D>) _param_geo_roll_d,
+        (ParamFloat<px4::params::UUV_GEO_PITCH_P>) _param_geo_pitch_p,
+        (ParamFloat<px4::params::UUV_GEO_PITCH_D>) _param_geo_pitch_d,
+        (ParamFloat<px4::params::UUV_GEO_YAW_P>) _param_geo_yaw_p,
+        (ParamFloat<px4::params::UUV_GEO_YAW_D>) _param_geo_yaw_d,
+        // max values
+        (ParamFloat<px4::params::UUV_ACT_X_ROLL>)   _param_act_roll_lim,
+        (ParamFloat<px4::params::UUV_ACT_X_PITCH>)  _param_act_pitch_lim,
+        (ParamFloat<px4::params::UUV_ACT_X_YAW>)    _param_act_yaw_lim,
+        (ParamFloat<px4::params::UUV_ACT_X_THRUST>) _param_act_thrust_lim,
+
+        (ParamInt<px4::params::CONTROL_MODE>) _param_control_mode,
+        (ParamInt<px4::params::INPUT_MODE>) _param_input_mode,
+
+        (ParamFloat<px4::params::DIRECT_ROLL>) _param_direct_roll,
+        (ParamFloat<px4::params::DIRECT_PITCH>) _param_direct_pitch,
+        (ParamFloat<px4::params::DIRECT_YAW>) _param_direct_yaw,
+        (ParamFloat<px4::params::DIRECT_THRUST>) _param_direct_thrust
+	)
+
+	/**
+	 * Update our local parameter cache.
+	 */
+	void parameters_update(bool force = false);
+
+	void	manual_control_setpoint_poll();
+	void	position_setpoint_triplet_poll();
+
+	void	vehicle_control_mode_poll();
+	void 	vehicle_attitude_poll();
+    void    vehicle_attitude_setpoint_poll();
+    void    vehicle_local_position_poll();
+
+
+
+    /**
+     * Control Attitude
+     */
+    void control_attitude_geo(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
+
+    void control_attitude_pid(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp, float deltaT);
+    void constrain_actuator_commands(float roll_u,float pitch_u,float yaw_u,float thrust_u);
+
+
 };
