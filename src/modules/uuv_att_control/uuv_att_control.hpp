@@ -101,10 +101,10 @@ using uORB::SubscriptionData;
 class UUVAttitudeControl: public ModuleBase<UUVAttitudeControl>, public ModuleParams
 {
 public:
-    UUVAttitudeControl();
-    ~UUVAttitudeControl();
+	UUVAttitudeControl();
+	~UUVAttitudeControl();
 
-    UUVAttitudeControl(const UUVAttitudeControl &) = delete;
+	UUVAttitudeControl(const UUVAttitudeControl &) = delete;
 	UUVAttitudeControl operator=(const UUVAttitudeControl &other) = delete;
 
 
@@ -127,134 +127,111 @@ public:
 //	bool task_running() { return _task_running; }
 
 private:
-    uORB::Publication<position_controller_status_s>	_pos_ctrl_status_pub{ORB_ID(position_controller_status)};
+	uORB::Publication<position_controller_status_s>	_pos_ctrl_status_pub{ORB_ID(position_controller_status)};
 	uORB::Publication<actuator_controls_s>		    _actuator_controls_pub{ORB_ID(actuator_controls_0)};
 
-    uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
+	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
 
-//    bool    _task_should_exit{false};	/**< if true, attitude control task should exit */
-//    bool    _task_running{false};		/**< if true, task is running in its mainloop */
-//    int     _control_task{-1};			/**< task handle */
+	int		_vehicle_attitude_sp_sub{-1};	/**< vehicle attitude setpoint */
+	int		_battery_status_sub{-1};		/**< battery status subscription */
+	int		_vehicle_attitude_sub{-1};		/**< control state subscription */
+	int		_angular_velocity_sub{-1};		/**< vehicle angular velocity subscription */
+	int		_local_pos_sub{-1};				/**< local position subscription */
+	int		_global_pos_sub{-1};			/**< global position subscription */
+	int		_manual_control_sub{-1};		/**< notification of manual control updates */
+	int		_vcontrol_mode_sub{-1};			/**< vehicle status subscription */
+	int		_sensor_combined_sub{-1};		/**< sensor combined subscription */
 
-    int     _vehicle_attitude_sp_sub{-1};			/**< vehicle attitude setpoint */
-    int     _battery_status_sub{-1};	/**< battery status subscription */
-    int     _vehicle_attitude_sub{-1};               /**< control state subscription */
-    int     _angular_velocity_sub{-1};  /**< vehicle angular velocity subscription */
-    int     _local_pos_sub{-1};         /**< local position subscription */
-    int     _global_pos_sub{-1};        /**< global position subscription */
-    int     _manual_control_sub{-1};			/**< notification of manual control updates */
-//    int     _params_sub{-1};			/**< notification of parameter updates */
-    int     _vcontrol_mode_sub{-1};		/**< vehicle status subscription */
-    int     _sensor_combined_sub{-1};   /**< sensor combined subscription */
-
-    actuator_controls_s         _actuators {};		/**< actuator control inputs */
-    manual_control_setpoint_s	_manual {};         /**< r/c channel data */
-    vehicle_attitude_s			_vehicle_attitude {};            /**< control state */
-    vehicle_angular_velocity_s  _angular_velocity{};/**< angular velocity */
-    vehicle_attitude_setpoint_s	_vehicle_attitude_sp {};         /**< vehicle attitude setpoint */
-    vehicle_local_position_s	_local_pos {};      /**< vehicle attitude setpoint */
-    vehicle_global_position_s	_global_pos{};		/**< global vehicle position */
-    vehicle_control_mode_s		_vcontrol_mode {};	/**< vehicle control mode */
-    sensor_combined_s			_sensor_combined{};
+	actuator_controls_s			_actuators {};			/**< actuator control inputs */
+	manual_control_setpoint_s	_manual {};				/**< r/c channel data */
+	vehicle_attitude_s			_vehicle_attitude {};	/**< control state */
+	vehicle_angular_velocity_s  _angular_velocity{};	/**< angular velocity */
+	vehicle_attitude_setpoint_s	_vehicle_attitude_sp {};/**< vehicle attitude setpoint */
+	vehicle_local_position_s	_local_pos {};			/**< vehicle attitude setpoint */
+	vehicle_global_position_s	_global_pos{};			/**< global vehicle position */
+	vehicle_control_mode_s		_vcontrol_mode {};		/**< vehicle control mode */
+	sensor_combined_s			_sensor_combined{};
 
 
-    SubscriptionData<vehicle_acceleration_s>		_vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
-    hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
-
+	SubscriptionData<vehicle_acceleration_s>		_vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
+	hrt_abstime _control_position_last_called{0}; 	/**<last call of control_position  */
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
-	//perf_counter_t	_nonfinite_input_perf;		/**< performance counter for non finite input */
-	//perf_counter_t	_nonfinite_output_perf;		/**< performance counter for non finite output */
 
-    /* PID Controller for roll, pitch, yaw*/
-    PID_t _roll_ctrl{};
-    PID_t _pitch_ctrl{};
-    PID_t _yaw_ctrl{};
+	/* PID Controller for roll, pitch, yaw*/
+	PID_t _roll_ctrl{};
+	PID_t _pitch_ctrl{};
+	PID_t _yaw_ctrl{};
 
 
-    // estimator reset counters
+	// estimator reset counters
 	uint8_t _pos_reset_counter{0};		// captures the number of times the estimator has reset the horizontal position
 
 
-    enum UUV_ATTCTRL_MODE {
+	enum UUV_ATTCTRL_MODE {
 		UUV_ATTCTRL_MODE_AUTO,
 		UUV_ATTCTRL_MODE_OTHER
 	} _control_mode_current{UUV_ATTCTRL_MODE_OTHER};			///< used to check the mode in the last control loop iteration. Use to check if the last iteration was in the same mode.
 
-    bool _debug{false};	/**< if set to true, print debug output */
-    int loop_counter = 0;
+	bool _debug{false};	/**< if set to true, print debug output */
+	int loop_counter = 0;
 
-    DEFINE_PARAMETERS(
-		(ParamInt<px4::params::GND_SP_CTRL_MODE>) _param_speed_control_mode,
-		(ParamFloat<px4::params::GND_SPEED_P>) _param_speed_p,
-		(ParamFloat<px4::params::GND_SPEED_I>) _param_speed_i,
-		(ParamFloat<px4::params::GND_SPEED_D>) _param_speed_d,
-
-		(ParamFloat<px4::params::GND_THR_MIN>) _param_throttle_min,
-		(ParamFloat<px4::params::GND_THR_MAX>) _param_throttle_max,
-        (ParamFloat<px4::params::GND_THR_CRUISE>) _param_throttle_cruise,
-
-        (ParamFloat<px4::params::UUV_ROLL_P>) _param_roll_p,
+	DEFINE_PARAMETERS(
+		(ParamFloat<px4::params::UUV_ROLL_P>) _param_roll_p,
 		(ParamFloat<px4::params::UUV_ROLL_I>) _param_roll_i,
 		(ParamFloat<px4::params::UUV_ROLL_D>) _param_roll_d,
-        (ParamFloat<px4::params::UUV_ROLL_IMAX>) _param_roll_imax,
-        (ParamFloat<px4::params::UUV_ROLL_FF>) _param_roll_ff,
-
-        (ParamFloat<px4::params::UUV_PITCH_P>) _param_pitch_p,
+		(ParamFloat<px4::params::UUV_ROLL_IMAX>) _param_roll_imax,
+		(ParamFloat<px4::params::UUV_ROLL_FF>) _param_roll_ff,
+		(ParamFloat<px4::params::UUV_PITCH_P>) _param_pitch_p,
 		(ParamFloat<px4::params::UUV_PITCH_I>) _param_pitch_i,
 		(ParamFloat<px4::params::UUV_PITCH_D>) _param_pitch_d,
-        (ParamFloat<px4::params::UUV_PITCH_IMAX>) _param_pitch_imax,
-        (ParamFloat<px4::params::UUV_PITCH_FF>) _param_pitch_ff,
-
-        (ParamFloat<px4::params::UUV_YAW_P>) _param_yaw_p,
+		(ParamFloat<px4::params::UUV_PITCH_IMAX>) _param_pitch_imax,
+		(ParamFloat<px4::params::UUV_PITCH_FF>) _param_pitch_ff,
+		(ParamFloat<px4::params::UUV_YAW_P>) _param_yaw_p,
 		(ParamFloat<px4::params::UUV_YAW_I>) _param_yaw_i,
 		(ParamFloat<px4::params::UUV_YAW_D>) _param_yaw_d,
-        (ParamFloat<px4::params::UUV_YAW_IMAX>) _param_yaw_imax,
-        (ParamFloat<px4::params::UUV_YAW_FF>) _param_yaw_ff,
-
-        // geometric controller
-        (ParamFloat<px4::params::UUV_GEO_ROLL_P>) _param_geo_roll_p,
-        (ParamFloat<px4::params::UUV_GEO_ROLL_D>) _param_geo_roll_d,
-        (ParamFloat<px4::params::UUV_GEO_PITCH_P>) _param_geo_pitch_p,
-        (ParamFloat<px4::params::UUV_GEO_PITCH_D>) _param_geo_pitch_d,
-        (ParamFloat<px4::params::UUV_GEO_YAW_P>) _param_geo_yaw_p,
-        (ParamFloat<px4::params::UUV_GEO_YAW_D>) _param_geo_yaw_d,
-        // max values
-        (ParamFloat<px4::params::UUV_ACT_X_ROLL>)   _param_act_roll_lim,
-        (ParamFloat<px4::params::UUV_ACT_X_PITCH>)  _param_act_pitch_lim,
-        (ParamFloat<px4::params::UUV_ACT_X_YAW>)    _param_act_yaw_lim,
-        (ParamFloat<px4::params::UUV_ACT_X_THRUST>) _param_act_thrust_lim,
-
-        (ParamInt<px4::params::CONTROL_MODE>) _param_control_mode,
-        (ParamInt<px4::params::INPUT_MODE>) _param_input_mode,
-
-        (ParamFloat<px4::params::DIRECT_ROLL>) _param_direct_roll,
-        (ParamFloat<px4::params::DIRECT_PITCH>) _param_direct_pitch,
-        (ParamFloat<px4::params::DIRECT_YAW>) _param_direct_yaw,
-        (ParamFloat<px4::params::DIRECT_THRUST>) _param_direct_thrust
+		(ParamFloat<px4::params::UUV_YAW_IMAX>) _param_yaw_imax,
+		(ParamFloat<px4::params::UUV_YAW_FF>) _param_yaw_ff,
+		// geometric controller
+		(ParamFloat<px4::params::UUV_GEO_ROLL_P>) _param_geo_roll_p,
+		(ParamFloat<px4::params::UUV_GEO_ROLL_D>) _param_geo_roll_d,
+		(ParamFloat<px4::params::UUV_GEO_PITCH_P>) _param_geo_pitch_p,
+		(ParamFloat<px4::params::UUV_GEO_PITCH_D>) _param_geo_pitch_d,
+		(ParamFloat<px4::params::UUV_GEO_YAW_P>) _param_geo_yaw_p,
+		(ParamFloat<px4::params::UUV_GEO_YAW_D>) _param_geo_yaw_d,
+		// actuator limits
+		(ParamFloat<px4::params::UUV_ACT_X_ROLL>)   _param_act_roll_lim,
+		(ParamFloat<px4::params::UUV_ACT_X_PITCH>)  _param_act_pitch_lim,
+		(ParamFloat<px4::params::UUV_ACT_X_YAW>)	_param_act_yaw_lim,
+		(ParamFloat<px4::params::UUV_ACT_X_THRUST>) _param_act_thrust_lim,
+		// control/input modes
+		(ParamInt<px4::params::CONTROL_MODE>) _param_control_mode,
+		(ParamInt<px4::params::INPUT_MODE>) _param_input_mode,
+		// direct access to inputs
+		(ParamFloat<px4::params::DIRECT_ROLL>) _param_direct_roll,
+		(ParamFloat<px4::params::DIRECT_PITCH>) _param_direct_pitch,
+		(ParamFloat<px4::params::DIRECT_YAW>) _param_direct_yaw,
+		(ParamFloat<px4::params::DIRECT_THRUST>) _param_direct_thrust
 	)
 
 	/**
 	 * Update our local parameter cache.
 	 */
-	void parameters_update(bool force = false);
+	void	parameters_update(bool force = false);
 
 	void	manual_control_setpoint_poll();
 	void	position_setpoint_triplet_poll();
-
 	void	vehicle_control_mode_poll();
 	void 	vehicle_attitude_poll();
-    void    vehicle_attitude_setpoint_poll();
-    void    vehicle_local_position_poll();
+	void	vehicle_attitude_setpoint_poll();
+	void	vehicle_local_position_poll();
 
+	/**
+	 * Control Attitude
+	 */
+	void control_attitude_geo(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
 
-
-    /**
-     * Control Attitude
-     */
-    void control_attitude_geo(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
-
-    void control_attitude_pid(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp, float deltaT);
-    void constrain_actuator_commands(float roll_u,float pitch_u,float yaw_u,float thrust_u);
+	void control_attitude_pid(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp, float deltaT);
+	void constrain_actuator_commands(float roll_u,float pitch_u,float yaw_u,float thrust_u);
 
 
 };
