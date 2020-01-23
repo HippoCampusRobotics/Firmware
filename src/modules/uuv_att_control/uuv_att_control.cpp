@@ -148,33 +148,33 @@ void UUVAttitudeControl::vehicle_attitude_setpoint_poll()
 
 float constrainAngle_180(float x)
 {
-	x = (float)fmod((double)x + 3.14159, 3.14159 * 2);
+	x = (float)fmod((float)x + 3.14159f, 3.14159f * 2.0f);
 
 	if (x < 0) {
-		x += 3.14159 * 2.0;
+		x += 3.14159f * 2.0f;
 	}
 
-	return x - 3.14159;
+	return x - 3.14159f;
 }
 
-double angleDiff(double a, double b)
+float angleDiff(float a, float b)
 {
-	double dif = fmod(b - a + 3.14159, 3.14159 * 2);
+	float dif = fmod(b - a + 3.14159f, 3.14159f * 2.0f);
 
 	if (dif < 0) {
-		dif += 3.14159 * 2.0;
+		dif += 3.14159f * 2.0f;
 	}
 
-	return dif - 3.14159;
+	return dif - 3.14159f;
 }
 
 
-double constrainAngle_360(double x)
+float constrainAngle_360(float x)
 {
-	x = fmod(x, 3.14159 * 2.0);
+	x = fmod(x, 3.14159f * 2.0f);
 
 	if (x < 0) {
-		x += 3.14159 * 2.0;
+		x += 3.14159f * 2.0f;
 	}
 
 	return x;
