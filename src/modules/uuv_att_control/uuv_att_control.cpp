@@ -168,32 +168,37 @@ double constrainAngle_360(double x){
 	return x;
 }
 
-void UUVAttitudeControl::constrain_actuator_commands(float roll_u,float pitch_u,float yaw_u,float thrust_u)
+void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u, float yaw_u, float thrust_u)
 {
 	if (PX4_ISFINITE(roll_u)) {
 		roll_u = math::constrain(roll_u, -_param_act_roll_lim.get(), _param_act_roll_lim.get());
 		_actuators.control[actuator_controls_s::INDEX_ROLL] = roll_u;
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_ROLL] = 0.0f;
+
 		if (_debug && loop_counter % 10 == 0) {
 			PX4_INFO("roll_u %.4f", (double)roll_u);
 		}
 	}
-	if (PX4_ISFINITE(pitch_u))
-	{
+
+	if (PX4_ISFINITE(pitch_u)){
 		pitch_u = math::constrain(pitch_u, -_param_act_pitch_lim.get(), _param_act_pitch_lim.get());
 		_actuators.control[actuator_controls_s::INDEX_PITCH] = pitch_u;
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_PITCH] = 0.0f;
+
 		if (_debug && loop_counter % 10 == 0) {
 			PX4_INFO("pitch_u %.4f", (double)pitch_u);
 		}
 	}
+
 	if (PX4_ISFINITE(yaw_u)) {
 		yaw_u = math::constrain(yaw_u, -_param_act_yaw_lim.get(), _param_act_yaw_lim.get());
 		_actuators.control[actuator_controls_s::INDEX_YAW] = yaw_u;
+
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_YAW] = 0.0f;
+
 		if (_debug && loop_counter % 10 == 0) {
 			PX4_INFO("yaw_u %.4f", (double)yaw_u);
 		}
@@ -202,8 +207,10 @@ void UUVAttitudeControl::constrain_actuator_commands(float roll_u,float pitch_u,
 	if (PX4_ISFINITE(thrust_u)) {
 		thrust_u = math::constrain(thrust_u, -_param_act_thrust_lim.get(), _param_act_thrust_lim.get());
 		_actuators.control[actuator_controls_s::INDEX_THROTTLE] = yaw_u;
+
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_THROTTLE] = 0.0f;
+
 		if (_debug && loop_counter % 10 == 0) {
 			PX4_INFO("thrust_u %.4f", (double)thrust_u);
 		}
@@ -240,12 +247,12 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	Vector3f omega;
 
 	/* Compute matrix: attitude error */
-	Matrix3f e_R =  (_rot_des.transpose() * _rot_att - _rot_att.transpose() * _rot_des) * 0.5;
+	Matrix3f e_R = (_rot_des.transpose() * _rot_att - _rot_att.transpose() * _rot_des) * 0.5;
 
 	/* vee-map the error to get a vector instead of matrix e_R */
-	e_R_vec(0) = e_R(2,1);  // Roll
-	e_R_vec(1) = e_R(0,2);  // Pitch
-	e_R_vec(2) = e_R(1,0);  // Yaw
+	e_R_vec(0) = e_R(2, 1);  // Roll
+	e_R_vec(1) = e_R(0, 2);  // Pitch
+	e_R_vec(2) = e_R(1, 0);  // Yaw
 
 	omega(0) = _angular_velocity.xyz[0] - 0.0f;
 	omega(1) = _angular_velocity.xyz[1] - 0.0f;
@@ -268,11 +275,11 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	//Matrix3f _rot_att = q_att.to_dcm();
 	Vector3f current_velocity_boat;
 
-	current_velocity_boat(0)=_local_pos.vx;
-	current_velocity_boat(1)=_local_pos.vy;
-	current_velocity_boat(2)=_local_pos.vz;
+	current_velocity_boat(0) = _local_pos.vx;
+	current_velocity_boat(1) = _local_pos.vy;
+	current_velocity_boat(2) = _local_pos.vz;
 
-	current_velocity_boat=q_att.to_dcm()*current_velocity_boat;
+	current_velocity_boat = q_att.to_dcm()*current_velocity_boat;
 
 	//matrix::Matrix<float, 4, 8> K[512];
 	//K[0](0,7)=3;
@@ -314,7 +321,8 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 }
 
 /* regular PID-Controller */
-void UUVAttitudeControl::control_attitude_pid(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp, float deltaT)
+void UUVAttitudeControl::control_attitude_pid(const vehicle_attitude_s &att,
+		const vehicle_attitude_setpoint_s &att_sp, float deltaT)
 {
 	float roll_body = _vehicle_attitude_sp.roll_body;
 	float pitch_body = _vehicle_attitude_sp.pitch_body;
@@ -337,6 +345,7 @@ void UUVAttitudeControl::control_attitude_pid(const vehicle_attitude_s &att, con
 	float yaw_angle_diff = 0.0f;
 
 	if (roll_body * euler_angles.phi() < 0.0f) {
+
 		if (roll_body < 0.0f) {
 			roll_angle_diff = euler_angles.phi() - roll_body ;
 
@@ -350,6 +359,7 @@ void UUVAttitudeControl::control_attitude_pid(const vehicle_attitude_s &att, con
 		}
 	}
 	if (pitch_body * euler_angles.theta() < 0.0f) {
+
 		if (pitch_body < 0.0f) {
 			pitch_angle_diff = euler_angles.theta() - pitch_body ;
 
@@ -363,6 +373,7 @@ void UUVAttitudeControl::control_attitude_pid(const vehicle_attitude_s &att, con
 		}
 	}
 	if (yaw_body * euler_angles.psi() < 0.0f) {
+
 		if (yaw_body < 0.0f) {
 			yaw_angle_diff = euler_angles.psi() - yaw_body ;
 
@@ -414,8 +425,7 @@ void UUVAttitudeControl::run()
 	fds[2].events = POLLIN;
 
 
-	while (!should_exit())
-	{
+	while (!should_exit()){
 		/* wait for up to 500ms for data */
 		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 500);
 
@@ -441,9 +451,7 @@ void UUVAttitudeControl::run()
 			last_run = hrt_absolute_time();
 
 			/* guard against too large deltaT's */
-			if (deltaT > 1.0f ||
-				fabsf(deltaT) < 0.00001f ||
-				!PX4_ISFINITE(deltaT)) {
+			if (deltaT > 1.0f || fabsf(deltaT) < 0.00001f || !PX4_ISFINITE(deltaT)) {
 				deltaT = 0.01f;
 			}
 
@@ -457,28 +465,23 @@ void UUVAttitudeControl::run()
 			vehicle_control_mode_poll();
 			manual_control_setpoint_poll(); // really?
 
-
-
 			/* Run attitude controllers if NOT manual mode*/
 			if (!manual_mode
-				&& _vcontrol_mode.flag_control_attitude_enabled
-				&& _vcontrol_mode.flag_control_rates_enabled) // including "enabled" rates?
-			{
+			    && _vcontrol_mode.flag_control_attitude_enabled
+			    && _vcontrol_mode.flag_control_rates_enabled){ // including "enabled" rates?
 
 				int controller_type = _param_control_mode.get();
 				int input_mode = _param_input_mode.get();
 
 				// if (input_mode == 1) // process incoming vehicles setpoint data --> nothing to do
-
-				if (input_mode == 2) // process manual data
-				{
+				if (input_mode == 2){ // process manual data
 					_vehicle_attitude_sp.roll_body = _param_direct_roll.get();
 					_vehicle_attitude_sp.pitch_body = _param_direct_pitch.get();
 					_vehicle_attitude_sp.yaw_body = _param_direct_yaw.get();
 					_vehicle_attitude_sp.thrust_body[0] = _param_direct_thrust.get();
 				}
 
-				if(controller_type == 1) {
+				if (controller_type == 1) {
 					/*PID - Control*/
 					control_attitude_pid(_vehicle_attitude, _vehicle_attitude_sp, deltaT);
 
@@ -486,9 +489,7 @@ void UUVAttitudeControl::run()
 					/* Geometric Control*/
 					control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
 
-				}
-				else if(controller_type == 3 && input_mode == 2) // feed through to actuators
-				{
+				} else if (controller_type == 3 && input_mode == 2){ // feed through to actuators
 					constrain_actuator_commands(_param_direct_roll.get(),
 												_param_direct_pitch.get(),
 												_param_direct_yaw.get(),
@@ -505,8 +506,7 @@ void UUVAttitudeControl::run()
 		perf_end(_loop_perf);
 
 		/* Manual Control mode (e.g. gamepad,...) - no assistance */
-		if (fds[1].revents & POLLIN)
-		{
+		if (fds[1].revents & POLLIN) {
 			// This should be copied even if not in manual mode. Otherwise, the poll(...) call will keep
 			// returning immediately and this loop will eat up resources.
 			orb_copy(ORB_ID(manual_control_setpoint), _manual_control_sub, &_manual);
@@ -514,10 +514,7 @@ void UUVAttitudeControl::run()
 			if (manual_mode) {
 				/* manual/direct control */
 				//PX4_INFO("Manual mode!");
-				constrain_actuator_commands(_manual.y,
-											 -_manual.x,
-											  _manual.r, //TODO: Readd yaw scale param
-											  _manual.z);
+				constrain_actuator_commands(_manual.y, -_manual.x, _manual.r, _manual.z);
 			}
 		}
 
@@ -552,11 +549,11 @@ int UUVAttitudeControl::task_spawn(int argc, char *argv[])
 {
 	/* start the task */
 	_task_id = px4_task_spawn_cmd("uuv_att_ctrl",
-					  SCHED_DEFAULT,
-					  SCHED_PRIORITY_ATTITUDE_CONTROL,
-					  1700,  // maybe switch to 1500
-					  (px4_main_t)&UUVAttitudeControl::run_trampoline,
-					  nullptr);
+					SCHED_DEFAULT,
+					SCHED_PRIORITY_ATTITUDE_CONTROL,
+					1700,  // maybe switch to 1500
+					(px4_main_t)&UUVAttitudeControl::run_trampoline,
+					nullptr);
 
 	if (_task_id < 0) {
 		warn("task start failed");
