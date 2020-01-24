@@ -33,12 +33,14 @@
 
 /**
  *
- * This module is a modification of the fixed wing module and it is designed for ground rovers.
+ * This module is a modification of the fixed wing / rover module  and it is designed for unmanned underwater vehicles  (UUV).
  * It has been developed starting from the fw module, simplified and improved with dedicated items.
  *
- * All the acknowledgments and credits for the fw wing app are reported in those files.
+ * All the acknowledgments and credits for the fw wing/rover app are reported in those files.
  *
- * @author Marco Zorzi <mzorzi@student.ethz.ch>
+ * @author Daniel Duecker <daniel.duecker@tuhh.de>
+ * @author Philipp Hastedt <philipp.hastedt@tuhh.de>
+ * @author Tim Hansen <t.hansen@tuhh.de>
  */
 
 #include "uuv_att_control.hpp"
@@ -609,7 +611,7 @@ int UUVAttitudeControl::print_usage(const char *reason)
 	PRINT_MODULE_DESCRIPTION(
 		R"DESCR_STR(
 ### Description
-Controls the attitude of an unmanned underwater vehicle (UUW).
+Controls the attitude of an unmanned underwater vehicle (UUV).
 
 Publishes `actuator_controls_0` messages at a constant 250Hz.
 
@@ -618,7 +620,6 @@ Currently, this implementation supports only a few modes:
 
  * Full manual: Roll, pitch, yaw, and throttle controls are passed directly through to the actuators
  * Auto mission: The uuv runs missions
- XXX* Loiter: The  will navigate to within the loiter radius, then stop the motorsXXX
 
 ### Examples
 CLI usage example:
