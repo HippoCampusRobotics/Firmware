@@ -492,23 +492,23 @@ void UUVAttitudeControl::run()
 				int controller_type = _param_control_mode.get();
 				int input_mode = _param_input_mode.get();
 
-				// if (input_mode == 1) // process incoming vehicles setpoint data --> nothing to do
-				if (input_mode == 2) { // process manual data
+				// if (input_mode == 0) // process incoming vehicles setpoint data --> nothing to do
+				if (input_mode == 1) { // process manual data
 					_vehicle_attitude_sp.roll_body = _param_direct_roll.get();
 					_vehicle_attitude_sp.pitch_body = _param_direct_pitch.get();
 					_vehicle_attitude_sp.yaw_body = _param_direct_yaw.get();
 					_vehicle_attitude_sp.thrust_body[0] = _param_direct_thrust.get();
 				}
 
-				if (controller_type == 1) {
+				if (controller_type == 0) {
 					/*PID - Control*/
 					control_attitude_pid(_vehicle_attitude, _vehicle_attitude_sp, deltaT);
 
-				} else if (controller_type == 2) {
+				} else if (controller_type == 1) {
 					/* Geometric Control*/
 					control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
 
-				} else if (controller_type == 3 && input_mode == 2) { // feed through to actuators
+				} else if (controller_type == 2 && input_mode == 1) { // feed through to actuators
 					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
 								    _param_direct_yaw.get(), _param_direct_thrust.get());
 
