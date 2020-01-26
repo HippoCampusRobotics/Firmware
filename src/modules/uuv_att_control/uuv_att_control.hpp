@@ -204,13 +204,13 @@ private:
 		(ParamFloat<px4::params::UUV_ACT_X_YAW>)	_param_act_yaw_lim,
 		(ParamFloat<px4::params::UUV_ACT_X_THRUST>) _param_act_thrust_lim,
 		// control/input modes
-		(ParamInt<px4::params::CONTROL_MODE>) _param_control_mode,
-		(ParamInt<px4::params::INPUT_MODE>) _param_input_mode,
+		(ParamInt<px4::params::UUV_CONTROL_MODE>) _param_control_mode,
+		(ParamInt<px4::params::UUV_INPUT_MODE>) _param_input_mode,
 		// direct access to inputs
-		(ParamFloat<px4::params::DIRECT_ROLL>) _param_direct_roll,
-		(ParamFloat<px4::params::DIRECT_PITCH>) _param_direct_pitch,
-		(ParamFloat<px4::params::DIRECT_YAW>) _param_direct_yaw,
-		(ParamFloat<px4::params::DIRECT_THRUST>) _param_direct_thrust
+		(ParamFloat<px4::params::UUV_DIRCT_ROLL>) _param_direct_roll,
+		(ParamFloat<px4::params::UUV_DIRCT_PITCH>) _param_direct_pitch,
+		(ParamFloat<px4::params::UUV_DIRCT_YAW>) _param_direct_yaw,
+		(ParamFloat<px4::params::UUV_DIRCT_THRUST>) _param_direct_thrust
 	)
 
 	/**

@@ -421,6 +421,8 @@ void UUVAttitudeControl::run()
 
 	_manual_control_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
 
+	_sensor_combined_sub = orb_subscribe(ORB_ID(sensor_combined));
+
 	//_params_sub = orb_subscribe(ORB_ID(parameter_update));
 
 	/* rate limit control mode updates to 5Hz */
@@ -511,6 +513,10 @@ void UUVAttitudeControl::run()
 				} else if (controller_type == 2 && input_mode == 1) { // feed through to actuators
 					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
 								    _param_direct_yaw.get(), _param_direct_thrust.get());
+								    PX4_INFO("Param Recv %6.3f, %6.3f, %6.3f, %6.3f", (double)_actuators.control[actuator_controls_s::INDEX_ROLL],
+													(double)_actuators.control[actuator_controls_s::INDEX_PITCH],
+													(double)_actuators.control[actuator_controls_s::INDEX_YAW],
+													(double)_actuators.control[actuator_controls_s::INDEX_THROTTLE]);
 
 				} else {
 					PX4_WARN("Invalid combination of input mode and controller\n");
@@ -538,7 +544,12 @@ void UUVAttitudeControl::run()
 		if (fds[2].revents & POLLIN) {
 
 			orb_copy(ORB_ID(sensor_combined), _sensor_combined_sub, &_sensor_combined);
-
+			int controller_type = _param_control_mode.get();
+			int input_mode = _param_input_mode.get();
+			if (controller_type == 3 && input_mode == 1) { // feed through to actuators
+					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
+								    _param_direct_yaw.get(), _param_direct_thrust.get());
+			}
 			//orb_copy(ORB_ID(vehicle_attitude), _vehicle_attitude_sub, &_vehicle_att);
 			_actuators.timestamp = hrt_absolute_time();
 
@@ -547,6 +558,11 @@ void UUVAttitudeControl::run()
 			    manual_mode) {
 				/* publish the actuator controls */
 				_actuator_controls_pub.publish(_actuators);
+				//PX4_INFO("Pub via sensor comb %6.3f, %6.3f, %6.3f, %6.3f", (double)_actuators.control[actuator_controls_s::INDEX_ROLL],
+			//										(double)_actuators.control[actuator_controls_s::INDEX_PITCH],
+		//											(double)_actuators.control[actuator_controls_s::INDEX_YAW],
+	//												(double)_actuators.control[actuator_controls_s::INDEX_THROTTLE]);
+
 			}
 		}
 	}

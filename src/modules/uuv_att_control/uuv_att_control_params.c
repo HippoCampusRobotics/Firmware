@@ -248,7 +248,7 @@ PARAM_DEFINE_FLOAT(UUV_ACT_X_THRUST, 1.0f);
  * @value 2 Direct Feedthough
  * @group UUV Attitude Control
  */
-PARAM_DEFINE_INT32(CONTROL_MODE, 0);
+PARAM_DEFINE_INT32(UUV_CONTROL_MODE, 0);
 
 /**
  * Select Input Mode
@@ -257,35 +257,35 @@ PARAM_DEFINE_INT32(CONTROL_MODE, 0);
  * @value 1 Direct Feedthrough
  * @group UUV Attitude Control
  */
-PARAM_DEFINE_INT32(INPUT_MODE, 0);
+PARAM_DEFINE_INT32(UUV_INPUT_MODE, 0);
 
 /**
  * Direct roll input
  *
  * @group UUV Attitude Control
  */
-PARAM_DEFINE_FLOAT(DIRECT_ROLL, 0.0f);
+PARAM_DEFINE_FLOAT(UUV_DIRCT_ROLL, 0.0f);
 
 /**
  * Direct pitch input
  *
  * @group UUV Attitude Control
  */
-PARAM_DEFINE_FLOAT(DIRECT_PITCH, 0.0f);
+PARAM_DEFINE_FLOAT(UUV_DIRCT_PITCH, 0.0f);
 
 /**
  * Direct yaw input
  *
  * @group UUV Attitude Control
  */
-PARAM_DEFINE_FLOAT(DIRECT_YAW, 0.0f);
+PARAM_DEFINE_FLOAT(UUV_DIRCT_YAW, 0.0f);
 
 /**
  * Direct thrust input
  *
  * @group UUV Attitude Control
  */
-PARAM_DEFINE_FLOAT(DIRECT_THRUST, 0.0f);
+PARAM_DEFINE_FLOAT(UUV_DIRCT_THRUST, 0.0f);
 
 
 /**
