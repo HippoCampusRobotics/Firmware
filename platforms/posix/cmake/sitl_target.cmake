@@ -65,7 +65,7 @@ set(models none shell
 	plane
 	standard_vtol tailsitter tiltrotor
 	hippocampus rover
-	uuv2)
+	uuv_hippocampus)
 set(all_posix_vmd_make_targets)
 foreach(viewer ${viewers})
 	foreach(debugger ${debuggers})
