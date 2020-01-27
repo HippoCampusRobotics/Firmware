@@ -161,7 +161,7 @@ then
 	sh /etc/init.d/rc.interface
 
 	# Start standard vtol apps.
-	sh /etc/init.d/rc.uuv2_apps
+	sh /etc/init.d/rc.uuv_apps
 
 fi
 
