@@ -34,14 +34,14 @@
 /**
  * @file uuv_att_control_params.c
  *
- * Parameters defined by the attitude control task for ground rovers
+ * Parameters defined by the attitude control task for unmanned underwater vehicles (UUVs)
  *
- * This is a modification of the fixed wing params and it is designed for ground rovers.
+ * This is a modification of the fixed wing/ground rover params and it is designed for ground rovers.
  * It has been developed starting from the fw  module, simplified and improved with dedicated items.
  *
- * All the ackowledgments and credits for the fw wing app are reported in those files.
+ * All the ackowledgments and credits for the fw wing/rover app are reported in those files.
  *
- * @author Marco Zorzi <mzorzi@student.ethz.ch>
+ * @author Daniel Duecker <daniel.duecker@tuhh.de>
  */
 
 /*
@@ -58,32 +58,12 @@
 PARAM_DEFINE_FLOAT(UUV_ROLL_P, 4.0f);
 
 /**
- * Roll integral gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ROLL_I, 0.0f);
-
-/**
  * Roll differential gain
  *
  * @group UUV Attitude Control
  */
 PARAM_DEFINE_FLOAT(UUV_ROLL_D, 1.5f);
 
-/**
- * Roll maximum integrator gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ROLL_IMAX, 5.0f);
-
-/**
- * Roll feed forward
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ROLL_FF, 0.0f);
 
 // Pitch gains
 /**
@@ -94,32 +74,12 @@ PARAM_DEFINE_FLOAT(UUV_ROLL_FF, 0.0f);
 PARAM_DEFINE_FLOAT(UUV_PITCH_P, 4.0f);
 
 /**
- * Pitch integral gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_PITCH_I, 0.0f);
-
-/**
  * Pitch differential gain
  *
  * @group UUV Attitude Control
  */
 PARAM_DEFINE_FLOAT(UUV_PITCH_D, 2.0f);
 
-/**
- * Pitch maximum integrator gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_PITCH_IMAX, 5.0f);
-
-/**
- * Pitch feed forward
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_PITCH_FF, 0.0f);
 
 // Yaw gains
 /**
@@ -130,112 +90,11 @@ PARAM_DEFINE_FLOAT(UUV_PITCH_FF, 0.0f);
 PARAM_DEFINE_FLOAT(UUV_YAW_P, 4.0f);
 
 /**
- * Yaw integral gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_YAW_I, 0.0f);
-
-/**
  * Yaw differential gain
  *
  * @group UUV Attitude Control
  */
 PARAM_DEFINE_FLOAT(UUV_YAW_D, 2.0f);
-
-/**
- * Yaw maximum integrator gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_YAW_IMAX, 5.0f);
-
-/**
- * Yaw feed forward
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_YAW_FF, 0.0f);
-
-
-/*
- * Geometric Controller parameters, accessible via MAVLink
- *
- */
-
-// Geo Roll gains
-/**
- * Roll proportional gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_GEO_ROLL_P, 1.0f);
-
-/**
- * Geo Roll differential gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_GEO_ROLL_D, 1.0f);
-
-
-// Geo Pitch gains
-/**
- * Geo Pitch proportional gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_GEO_PITCH_P, 1.0f);
-
-/**
- * Geo Pitch differential gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_GEO_PITCH_D, 1.0f);
-
-// Geo Yaw gains
-/**
- * Geo Yaw proportional gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_GEO_YAW_P, 1.0f);
-
-/**
- * Geo Yaw differential gain
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_GEO_YAW_D, 1.0f);
-
-/**
- * Actuator Roll Max
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ACT_X_ROLL, 1.0f);
-
-/**
- * Actuator Pitch Max
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ACT_X_PITCH, 1.0f);
-
-/**
- * Actuator Yaw Max
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ACT_X_YAW, 1.0f);
-
-/**
- * Actuator Thrust Max
- *
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_FLOAT(UUV_ACT_X_THRUST, 1.0f);
 
 
 // Input / Control Modes
@@ -245,7 +104,7 @@ PARAM_DEFINE_FLOAT(UUV_ACT_X_THRUST, 1.0f);
  *
  * @value 0 PID-Control
  * @value 1 Geometric-Control
- * @value 2 Direct Feedthough
+ * @value 2 Direct Feedthrough
  * @group UUV Attitude Control
  */
 PARAM_DEFINE_INT32(UUV_CONTROL_MODE, 0);
@@ -286,15 +145,3 @@ PARAM_DEFINE_FLOAT(UUV_DIRCT_YAW, 0.0f);
  * @group UUV Attitude Control
  */
 PARAM_DEFINE_FLOAT(UUV_DIRCT_THRUST, 0.0f);
-
-
-/**
- * Type of magnetometer fusion
- *
- * Integer controlling the type of magnetometer fusion used - magnetic heading or 3-component vector. The fuson of magnetomer data as a three component vector enables vehicle body fixed hard iron errors to be learned, but requires a stable earth field.
- * If set to 'Automatic' magnetic heading fusion is used when on-ground and 3-axis magnetic field fusion in-flight with fallback to magnetic heading fusion if there is insufficient motion to make yaw or magnetic field states observable.
- * If set to 'Magnetic heading' magnetic heading fusion is used at all times
- * @value 0 Automatic
- * @value 1 Magnetic heading
- *
- */

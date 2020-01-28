@@ -24,5 +24,6 @@ then
 fi
 
 set MAV_TYPE 12
+param set MAV_TYPE ${MAV_TYPE}
 
 set MIXER uuv_x

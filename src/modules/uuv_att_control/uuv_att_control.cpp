@@ -79,32 +79,6 @@ void UUVAttitudeControl::parameters_update(bool force)
 
 		// update parameters from storage
 		updateParams();
-
-
-		/* pid controller parameters*/
-		pid_init(&_roll_ctrl, PID_MODE_DERIVATIV_SET, 0.01f);
-		pid_set_parameters(&_roll_ctrl,
-				   _param_roll_p.get(),
-				   _param_roll_i.get(),
-				   _param_roll_d.get(),
-				   _param_roll_imax.get(),
-				   1.0f);
-
-		pid_init(&_pitch_ctrl, PID_MODE_DERIVATIV_SET, 0.01f);
-		pid_set_parameters(&_pitch_ctrl,
-				   _param_pitch_p.get(),
-				   _param_pitch_i.get(),
-				   _param_pitch_d.get(),
-				   _param_pitch_imax.get(),
-				   1.0f);
-
-		pid_init(&_yaw_ctrl, PID_MODE_DERIVATIV_SET, 0.01f);
-		pid_set_parameters(&_yaw_ctrl,
-				   _param_yaw_p.get(),
-				   _param_yaw_i.get(),
-				   _param_yaw_d.get(),
-				   _param_yaw_imax.get(),
-				   1.0f);
 	}
 }
 
@@ -128,16 +102,6 @@ void UUVAttitudeControl::manual_control_setpoint_poll()
 	}
 }
 
-void UUVAttitudeControl::vehicle_local_position_poll()
-{
-	bool updated = false;
-	orb_check(_local_pos_sub, &updated);
-
-	if (updated) {
-		orb_copy(ORB_ID(vehicle_local_position), _local_pos_sub, &_local_pos);
-	}
-}
-
 void UUVAttitudeControl::vehicle_attitude_setpoint_poll()
 {
 	bool updated = false;
@@ -152,49 +116,49 @@ void UUVAttitudeControl::vehicle_attitude_setpoint_poll()
 void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u, float yaw_u, float thrust_u)
 {
 	if (PX4_ISFINITE(roll_u)) {
-		roll_u = math::constrain(roll_u, -_param_act_roll_lim.get(), _param_act_roll_lim.get());
+		roll_u = math::constrain(roll_u, -1.0f, 1.0f);
 		_actuators.control[actuator_controls_s::INDEX_ROLL] = roll_u;
 
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_ROLL] = 0.0f;
 
-		if (_debug && loop_counter % 10 == 0) {
+		if (loop_counter % 10 == 0) {
 			PX4_INFO("roll_u %.4f", (double)roll_u);
 		}
 	}
 
 	if (PX4_ISFINITE(pitch_u)) {
-		pitch_u = math::constrain(pitch_u, -_param_act_pitch_lim.get(), _param_act_pitch_lim.get());
+		pitch_u = math::constrain(pitch_u, -1.0f, 1.0f);
 		_actuators.control[actuator_controls_s::INDEX_PITCH] = pitch_u;
 
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_PITCH] = 0.0f;
 
-		if (_debug && loop_counter % 10 == 0) {
+		if (loop_counter % 10 == 0) {
 			PX4_INFO("pitch_u %.4f", (double)pitch_u);
 		}
 	}
 
 	if (PX4_ISFINITE(yaw_u)) {
-		yaw_u = math::constrain(yaw_u, -_param_act_yaw_lim.get(), _param_act_yaw_lim.get());
+		yaw_u = math::constrain(yaw_u, -1.0f, 1.0f);
 		_actuators.control[actuator_controls_s::INDEX_YAW] = yaw_u;
 
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_YAW] = 0.0f;
 
-		if (_debug && loop_counter % 10 == 0) {
+		if (loop_counter % 10 == 0) {
 			PX4_INFO("yaw_u %.4f", (double)yaw_u);
 		}
 	}
 
 	if (PX4_ISFINITE(thrust_u)) {
-		thrust_u = math::constrain(thrust_u, -_param_act_thrust_lim.get(), _param_act_thrust_lim.get());
-		_actuators.control[actuator_controls_s::INDEX_THROTTLE] = yaw_u;
+		thrust_u = math::constrain(thrust_u, -1.0f, 1.0f);
+		_actuators.control[actuator_controls_s::INDEX_THROTTLE] = thrust_u;
 
 	} else {
 		_actuators.control[actuator_controls_s::INDEX_THROTTLE] = 0.0f;
 
-		if (_debug && loop_counter % 10 == 0) {
+		if (loop_counter % 10 == 0) {
 			PX4_INFO("thrust_u %.4f", (double)thrust_u);
 		}
 	}
@@ -203,9 +167,9 @@ void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u
 
 void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp)
 {
-	Eulerf euler_angles(matrix::Quatf(att.q));
-	//PX4_INFO("quat: %.2f; %.2f; %.2f; %.2f", (double)_att.q[0], (double)_att.q[1],(double)_att.q[2],(double)_att.q[3]);
 	/* Geometric Controller */
+
+	Eulerf euler_angles(matrix::Quatf(att.q));
 
 	float roll_u;
 	float pitch_u;
@@ -242,14 +206,14 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	omega(2) = _angular_velocity.xyz[2] - 0.0f;
 
 	/**< P-Control */
-	torques(0) = - e_R_vec(0) * _param_geo_roll_p.get();	/**< Roll  */
-	torques(1) = - e_R_vec(1) * _param_geo_pitch_p.get();	/**< Pitch */
-	torques(2) = - e_R_vec(2) * _param_geo_yaw_p.get();		/**< Yaw   */
+	torques(0) = - e_R_vec(0) * _param_roll_p.get();	/**< Roll  */
+	torques(1) = - e_R_vec(1) * _param_pitch_p.get();	/**< Pitch */
+	torques(2) = - e_R_vec(2) * _param_yaw_p.get();		/**< Yaw   */
 
 	/**< PD-Control */
-	torques(0) = torques(0) - omega(0) * _param_geo_roll_d.get();  /**< Roll  */
-	torques(1) = torques(1) - omega(1) * _param_geo_pitch_d.get(); /**< Pitch */
-	torques(2) = torques(2) - omega(2) * _param_geo_yaw_d.get();   /**< Yaw   */
+	torques(0) = torques(0) - omega(0) * _param_roll_d.get();  /**< Roll  */
+	torques(1) = torques(1) - omega(1) * _param_pitch_d.get(); /**< Pitch */
+	torques(2) = torques(2) - omega(2) * _param_yaw_d.get();   /**< Yaw   */
 	roll_u = torques(0);
 	pitch_u = torques(1);
 	yaw_u = torques(2);
@@ -303,101 +267,21 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	/* Geometric Controller END*/
 }
 
-/* regular PID-Controller */
-void UUVAttitudeControl::control_attitude_pid(const vehicle_attitude_s &att,
-		const vehicle_attitude_setpoint_s &att_sp, float deltaT)
-{
-	float roll_body = _vehicle_attitude_sp.roll_body;
-	float pitch_body = _vehicle_attitude_sp.pitch_body;
-	float yaw_body = _vehicle_attitude_sp.yaw_body;
-
-	Eulerf euler_angles(matrix::Quatf(att.q));
-
-	/* Calculate the control output for the steering as yaw */
-
-	float roll_u = pid_calculate(&_roll_ctrl, roll_body, euler_angles.phi(), _angular_velocity.xyz[0], deltaT);
-	float pitch_u = pid_calculate(&_pitch_ctrl, pitch_body, euler_angles.theta(), _angular_velocity.xyz[1], deltaT);
-	float yaw_u = pid_calculate(&_yaw_ctrl, yaw_body, euler_angles.psi(), _angular_velocity.xyz[2], deltaT);
-
-	/* thrust feedtrough */
-	float thrust_u = _param_direct_thrust.get();
-
-
-	float roll_angle_diff = 0.0f;
-	float pitch_angle_diff = 0.0f;
-	float yaw_angle_diff = 0.0f;
-
-	if (roll_body * euler_angles.phi() < 0.0f) {
-
-		if (roll_body < 0.0f) {
-			roll_angle_diff = euler_angles.phi() - roll_body ;
-
-		} else {
-			roll_angle_diff = roll_body - euler_angles.phi();
-		}
-
-		// a switch might have happened
-		if ((double)roll_angle_diff > M_PI) {
-			roll_u = -roll_u;
-		}
-	}
-
-	if (pitch_body * euler_angles.theta() < 0.0f) {
-
-		if (pitch_body < 0.0f) {
-			pitch_angle_diff = euler_angles.theta() - pitch_body ;
-
-		} else {
-			pitch_angle_diff = pitch_body - euler_angles.theta();
-		}
-
-		// a switch might have happened
-		if ((double)pitch_angle_diff > M_PI) {
-			pitch_u = -pitch_u;
-		}
-	}
-
-	if (yaw_body * euler_angles.psi() < 0.0f) {
-
-		if (yaw_body < 0.0f) {
-			yaw_angle_diff = euler_angles.psi() - yaw_body ;
-
-		} else {
-			yaw_angle_diff = yaw_body - euler_angles.psi();
-		}
-
-		// a switch might have happened
-		if ((double)yaw_angle_diff > M_PI) {
-			yaw_u = -yaw_u;
-		}
-	}
-
-	constrain_actuator_commands(roll_u, pitch_u, yaw_u, thrust_u);
-}
-
-
 
 void UUVAttitudeControl::run()
 {
 	_vehicle_attitude_sp_sub = orb_subscribe(ORB_ID(vehicle_attitude_setpoint));
 	_vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 	_angular_velocity_sub = orb_subscribe(ORB_ID(vehicle_angular_velocity));
-	_local_pos_sub = orb_subscribe(ORB_ID(vehicle_local_position));
-	_global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
 	_vcontrol_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
 
 	_manual_control_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
 
 	_sensor_combined_sub = orb_subscribe(ORB_ID(sensor_combined));
 
-	//_params_sub = orb_subscribe(ORB_ID(parameter_update));
 
 	/* rate limit control mode updates to 5Hz */
 	orb_set_interval(_vcontrol_mode_sub, 200);
-
-	/* rate limit position updates to 50 Hz */
-	orb_set_interval(_global_pos_sub, 20);
-	orb_set_interval(_local_pos_sub, 20);
 
 	parameters_update(true);
 
@@ -446,12 +330,11 @@ void UUVAttitudeControl::run()
 			/* load local copies */
 			orb_copy(ORB_ID(vehicle_attitude), _vehicle_attitude_sub, &_vehicle_attitude);
 			orb_copy(ORB_ID(vehicle_angular_velocity), _angular_velocity_sub, &_angular_velocity);
-			orb_copy(ORB_ID(vehicle_local_position), _local_pos_sub, &_local_pos);
 
 			vehicle_attitude_setpoint_poll();
-			vehicle_local_position_poll();  // really?
 			vehicle_control_mode_poll();
-			manual_control_setpoint_poll(); // really?
+			manual_control_setpoint_poll();
+
 
 			/* Run attitude controllers if NOT manual mode*/
 			if (!manual_mode
@@ -469,26 +352,19 @@ void UUVAttitudeControl::run()
 					_vehicle_attitude_sp.thrust_body[0] = _param_direct_thrust.get();
 				}
 
-				if (controller_type == 0) {
-					/*PID - Control*/
-					control_attitude_pid(_vehicle_attitude, _vehicle_attitude_sp, deltaT);
-
-				} else if (controller_type == 1) {
+				if (controller_type == 1) {
 					/* Geometric Control*/
 					control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
 
 				} else if (controller_type == 2 && input_mode == 1) { // feed through to actuators
-					//constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
-				//				    _param_direct_yaw.get(), _param_direct_thrust.get());
+					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
+								    _param_direct_yaw.get(), _param_direct_thrust.get());
 
-					_actuators.control[actuator_controls_s::INDEX_ROLL] = _param_direct_roll.get();
+				/**	_actuators.control[actuator_controls_s::INDEX_ROLL] = _param_direct_roll.get();
 					_actuators.control[actuator_controls_s::INDEX_PITCH] = _param_direct_pitch.get();
 					_actuators.control[actuator_controls_s::INDEX_YAW] = _param_direct_yaw.get();
 					_actuators.control[actuator_controls_s::INDEX_THROTTLE] = _param_direct_thrust.get();
-					//PX4_INFO("Param Recv %6.3f, %6.3f, %6.3f, %6.3f", (double)_actuators.control[actuator_controls_s::INDEX_ROLL],
-				//									(double)_actuators.control[actuator_controls_s::INDEX_PITCH],
-				//									(double)_actuators.control[actuator_controls_s::INDEX_YAW],
-				//									(double)_actuators.control[actuator_controls_s::INDEX_THROTTLE]);
+				*/
 
 				} else {
 					PX4_WARN("Invalid combination of input mode and controller\n");
@@ -530,18 +406,12 @@ void UUVAttitudeControl::run()
 			    manual_mode) {
 				/* publish the actuator controls */
 				_actuator_controls_pub.publish(_actuators);
-				//PX4_INFO("Pub via sensor comb %6.3f, %6.3f, %6.3f, %6.3f", (double)_actuators.control[actuator_controls_s::INDEX_ROLL],
-			//										(double)_actuators.control[actuator_controls_s::INDEX_PITCH],
-		//											(double)_actuators.control[actuator_controls_s::INDEX_YAW],
-	//												(double)_actuators.control[actuator_controls_s::INDEX_THROTTLE]);
 
 			}
 		}
 	}
 
 	orb_unsubscribe(_vcontrol_mode_sub);
-	orb_unsubscribe(_global_pos_sub);
-	orb_unsubscribe(_local_pos_sub);
 	orb_unsubscribe(_manual_control_sub);
 	orb_unsubscribe(_vehicle_attitude_sub);
 	orb_unsubscribe(_sensor_combined_sub);

@@ -39,7 +39,8 @@
  * All the acknowledgments and credits for the fw wing app are reported in those files.
  *
  * @author Daniel Duecker <daniel.duecker@tuhh.de>
- * @author Philipp Hastedt <mail>
+ * @author Philipp Hastedt <philipp.hastedt@tuhh.de>
+ * @author Tim Hansen <t.hansen@tuhh.de>
  */
 
 /* check necessary */
@@ -52,12 +53,11 @@
 #include <limits.h>
 #include <unistd.h>
 
-/* from "rover"-module */
+
 #include <float.h>
 
 #include <drivers/drv_hrt.h>
 #include <lib/ecl/geo/geo.h>
-//#include <lib/ecl/l1/ecl_l1_pos_controller.h>
 #include <lib/mathlib/mathlib.h>
 #include <lib/perf/perf_counter.h>
 #include <lib/pid/pid.h>
@@ -73,21 +73,18 @@
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/position_controller_status.h>
-#include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
+#include <uORB/topics/vehicle_angular_velocity.h>
+#include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_control_mode.h>
-#include <uORB/topics/vehicle_global_position.h>
-#include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/ekf2_timestamps.h>
 #include <uORB/uORB.h>
 
 
-#include <uORB/topics/vehicle_angular_velocity.h>
-#include <uORB/topics/vehicle_rates_setpoint.h>
 
 
 using matrix::Eulerf;
@@ -177,32 +174,11 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::UUV_ROLL_P>) _param_roll_p,
-		(ParamFloat<px4::params::UUV_ROLL_I>) _param_roll_i,
 		(ParamFloat<px4::params::UUV_ROLL_D>) _param_roll_d,
-		(ParamFloat<px4::params::UUV_ROLL_IMAX>) _param_roll_imax,
-		(ParamFloat<px4::params::UUV_ROLL_FF>) _param_roll_ff,
 		(ParamFloat<px4::params::UUV_PITCH_P>) _param_pitch_p,
-		(ParamFloat<px4::params::UUV_PITCH_I>) _param_pitch_i,
 		(ParamFloat<px4::params::UUV_PITCH_D>) _param_pitch_d,
-		(ParamFloat<px4::params::UUV_PITCH_IMAX>) _param_pitch_imax,
-		(ParamFloat<px4::params::UUV_PITCH_FF>) _param_pitch_ff,
 		(ParamFloat<px4::params::UUV_YAW_P>) _param_yaw_p,
-		(ParamFloat<px4::params::UUV_YAW_I>) _param_yaw_i,
 		(ParamFloat<px4::params::UUV_YAW_D>) _param_yaw_d,
-		(ParamFloat<px4::params::UUV_YAW_IMAX>) _param_yaw_imax,
-		(ParamFloat<px4::params::UUV_YAW_FF>) _param_yaw_ff,
-		// geometric controller
-		(ParamFloat<px4::params::UUV_GEO_ROLL_P>) _param_geo_roll_p,
-		(ParamFloat<px4::params::UUV_GEO_ROLL_D>) _param_geo_roll_d,
-		(ParamFloat<px4::params::UUV_GEO_PITCH_P>) _param_geo_pitch_p,
-		(ParamFloat<px4::params::UUV_GEO_PITCH_D>) _param_geo_pitch_d,
-		(ParamFloat<px4::params::UUV_GEO_YAW_P>) _param_geo_yaw_p,
-		(ParamFloat<px4::params::UUV_GEO_YAW_D>) _param_geo_yaw_d,
-		// actuator limits
-		(ParamFloat<px4::params::UUV_ACT_X_ROLL>)   _param_act_roll_lim,
-		(ParamFloat<px4::params::UUV_ACT_X_PITCH>)  _param_act_pitch_lim,
-		(ParamFloat<px4::params::UUV_ACT_X_YAW>)	_param_act_yaw_lim,
-		(ParamFloat<px4::params::UUV_ACT_X_THRUST>) _param_act_thrust_lim,
 		// control/input modes
 		(ParamInt<px4::params::UUV_CONTROL_MODE>) _param_control_mode,
 		(ParamInt<px4::params::UUV_INPUT_MODE>) _param_input_mode,
