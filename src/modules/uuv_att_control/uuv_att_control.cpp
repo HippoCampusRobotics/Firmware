@@ -148,39 +148,6 @@ void UUVAttitudeControl::vehicle_attitude_setpoint_poll()
 	}
 }
 
-float constrainAngle_180(float x)
-{
-	x = (float)fmod((float)x + 3.14159f, 3.14159f * 2.0f);
-
-	if (x < 0) {
-		x += 3.14159f * 2.0f;
-	}
-
-	return x - 3.14159f;
-}
-
-float angleDiff(float a, float b)
-{
-	float dif = fmod(b - a + 3.14159f, 3.14159f * 2.0f);
-
-	if (dif < 0) {
-		dif += 3.14159f * 2.0f;
-	}
-
-	return dif - 3.14159f;
-}
-
-
-float constrainAngle_360(float x)
-{
-	x = fmod(x, 3.14159f * 2.0f);
-
-	if (x < 0) {
-		x += 3.14159f * 2.0f;
-	}
-
-	return x;
-}
 
 void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u, float yaw_u, float thrust_u)
 {
@@ -511,12 +478,17 @@ void UUVAttitudeControl::run()
 					control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
 
 				} else if (controller_type == 2 && input_mode == 1) { // feed through to actuators
-					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
-								    _param_direct_yaw.get(), _param_direct_thrust.get());
-								    PX4_INFO("Param Recv %6.3f, %6.3f, %6.3f, %6.3f", (double)_actuators.control[actuator_controls_s::INDEX_ROLL],
-													(double)_actuators.control[actuator_controls_s::INDEX_PITCH],
-													(double)_actuators.control[actuator_controls_s::INDEX_YAW],
-													(double)_actuators.control[actuator_controls_s::INDEX_THROTTLE]);
+					//constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
+				//				    _param_direct_yaw.get(), _param_direct_thrust.get());
+
+					_actuators.control[actuator_controls_s::INDEX_ROLL] = _param_direct_roll.get();
+					_actuators.control[actuator_controls_s::INDEX_PITCH] = _param_direct_pitch.get();
+					_actuators.control[actuator_controls_s::INDEX_YAW] = _param_direct_yaw.get();
+					_actuators.control[actuator_controls_s::INDEX_THROTTLE] = _param_direct_thrust.get();
+					//PX4_INFO("Param Recv %6.3f, %6.3f, %6.3f, %6.3f", (double)_actuators.control[actuator_controls_s::INDEX_ROLL],
+				//									(double)_actuators.control[actuator_controls_s::INDEX_PITCH],
+				//									(double)_actuators.control[actuator_controls_s::INDEX_YAW],
+				//									(double)_actuators.control[actuator_controls_s::INDEX_THROTTLE]);
 
 				} else {
 					PX4_WARN("Invalid combination of input mode and controller\n");
@@ -574,7 +546,7 @@ void UUVAttitudeControl::run()
 	orb_unsubscribe(_vehicle_attitude_sub);
 	orb_unsubscribe(_sensor_combined_sub);
 
-	warnx("exiting UUV Attitude Controller.\n");
+	warnx("exiting.\n");
 }
 
 int UUVAttitudeControl::task_spawn(int argc, char *argv[])

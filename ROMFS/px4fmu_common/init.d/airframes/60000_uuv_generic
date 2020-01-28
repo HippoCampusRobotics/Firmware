@@ -23,7 +23,6 @@ then
 	#param set CBRK_GPSFAIL 240024
 fi
 
-
 set MAV_TYPE 12
 
-set MIXER uuv2_sitl.main
+set MIXER uuv_x

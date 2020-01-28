@@ -1,13 +1,6 @@
 #!/bin/sh
 #
-# @name HippoCampus UUV (Unmanned Underwater Vehicle)
-#
-# @type Underwater Robot
-# @class Underwater Robot
-#
-# @board px4_fmu-v2 exclude
-#
-# @maintainer Daniel Duecker <daniel.duecker@tuhh.de>
+# @name Hippocampus UUV
 #
 
 sh /etc/init.d/rc.uuv_defaults
@@ -25,4 +18,5 @@ fi
 
 set MAV_TYPE 12
 
-set MIXER uuv_x
+set MIXER_FILE etc/mixers-sitl/uuv_x_sitl.main.mix
+set MIXER custom

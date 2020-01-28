@@ -3,7 +3,7 @@
 # @name UUV
 #
 
-sh /etc/init.d/rc.uuv2_defaults
+sh /etc/init.d/rc.uuv_defaults
 
 if [ $AUTOCNF = yes ]
 then
@@ -16,7 +16,7 @@ then
 	#param set CBRK_GPSFAIL 240024
 fi
 
-
 set MAV_TYPE 12
 
-set MIXER uuv2_sitl.main
+set MIXER_FILE etc/mixers-sitl/uuv_x_sitl.main.mix
+set MIXER custom
