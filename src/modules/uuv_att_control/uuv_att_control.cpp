@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2017 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -167,7 +167,13 @@ void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u
 
 void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp)
 {
-	/* Geometric Controller */
+	/** Geometric Controller
+	 *
+	 * based on
+	 * D. Mellinger, V. Kumar, "Minimum Snap Trajectory Generation and Control for Quadrotors", IEEE ICRA 2011, pp. 2520-2525.
+	 * D. A. Duecker, A. Hackbarth, T. Johannink, E. Kreuzer, and E. Solowjow, “Micro Underwater Vehicle Hydrobatics: A SubmergedFuruta Pendulum,” IEEE ICRA 2018, pp. 7498–7503.
+	 */
+
 
 	Eulerf euler_angles(matrix::Quatf(att.q));
 
@@ -179,8 +185,6 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	float roll_body = _vehicle_attitude_sp.roll_body;
 	float pitch_body = _vehicle_attitude_sp.pitch_body;
 	float yaw_body = _vehicle_attitude_sp.yaw_body;
-
-	/* geometric control start */
 
 	/* get attitude setpoint rotational matrix */
 	Dcmf _rot_des = Eulerf(roll_body, pitch_body, yaw_body);
@@ -197,9 +201,9 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	Matrix3f e_R = (_rot_des.transpose() * _rot_att - _rot_att.transpose() * _rot_des) * 0.5;
 
 	/* vee-map the error to get a vector instead of matrix e_R */
-	e_R_vec(0) = e_R(2, 1);  // Roll
-	e_R_vec(1) = e_R(0, 2);  // Pitch
-	e_R_vec(2) = e_R(1, 0);  // Yaw
+	e_R_vec(0) = e_R(2, 1);  /**< Roll  */
+	e_R_vec(1) = e_R(0, 2);  /**< Pitch */
+	e_R_vec(2) = e_R(1, 0);  /**< Yaw   */
 
 	omega(0) = _angular_velocity.xyz[0] - 0.0f;
 	omega(1) = _angular_velocity.xyz[1] - 0.0f;
@@ -214,54 +218,24 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &att, con
 	torques(0) = torques(0) - omega(0) * _param_roll_d.get();  /**< Roll  */
 	torques(1) = torques(1) - omega(1) * _param_pitch_d.get(); /**< Pitch */
 	torques(2) = torques(2) - omega(2) * _param_yaw_d.get();   /**< Yaw   */
+
 	roll_u = torques(0);
 	pitch_u = torques(1);
 	yaw_u = torques(2);
 
 	//Quatf q_att(_att.q[0], _att.q[1], _att.q[2], _att.q[3]);
 	//Matrix3f _rot_att = q_att.to_dcm();
-	Vector3f current_velocity_boat;
+	/** Vector3f current_velocity_boat;
 
 	current_velocity_boat(0) = _local_pos.vx;
 	current_velocity_boat(1) = _local_pos.vy;
 	current_velocity_boat(2) = _local_pos.vz;
 
 	current_velocity_boat = q_att.to_dcm() * current_velocity_boat;
-
-	//matrix::Matrix<float, 4, 8> K[512];
-	//K[0](0,7)=3;
-	//printf("velocity BODY X: %.4f\n",(double)K[0](0,7));
-
-	/*const int rows = 4;
-	const int cols = 3;
-	printf("velocity BODY X: %.4f\n",(double)83);
-	std::ifstream file(PX4_ROOTFSDIR"/fs/microsd/tmp.csv");
-	if (file.is_open()) {
-		float r[rows][cols];
-		printf("velocity BODY X: %.4f\n",(double)83);
-		for (int i = 0; i < rows; ++i) {
-			for (int j = 0; j < cols; ++j) {
-				file >> r[i][j];
-				file.get(); // Throw away the comma
-			}
-		}
-		for (int i = 0; i < rows; ++i) {
-			for (int j = 0; j < cols; ++j) {
-				std::cout << r[i][j] << ' ';
-			}
-			std::cout << '\n';
-		}
-	}*/
-
-
-	// thrust_u = _vehicle_attitude_sp.thrust_body[0];//_parameters.direct_roll
-	thrust_u = _param_direct_thrust.get();
-
-	/*
-	float control_effort = euler_sp(2) / _param_max_turn_angle.get();
-	control_effort = math::constrain(control_effort, -1.0f, 1.0f);
 	*/
 
+	// take thrust as
+	thrust_u = _param_direct_thrust.get();
 
 	constrain_actuator_commands(roll_u, pitch_u, yaw_u, thrust_u);
 	/* Geometric Controller END*/
@@ -315,8 +289,6 @@ void UUVAttitudeControl::run()
 		/* update parameters from storage */
 		parameters_update();
 
-		bool manual_mode = _vcontrol_mode.flag_control_manual_enabled;
-
 		/* only run controller if attitude changed */
 		if (fds[0].revents & POLLIN) {
 			static uint64_t last_run = 0;
@@ -338,12 +310,11 @@ void UUVAttitudeControl::run()
 			manual_control_setpoint_poll();
 
 
-			/* Run attitude controllers if NOT manual mode*/
-			if (!manual_mode
+			/* Run geometric attitude controllers if NOT manual mode*/
+			if (!_vcontrol_mode.flag_control_manual_enabled
 			    && _vcontrol_mode.flag_control_attitude_enabled
-			    && _vcontrol_mode.flag_control_rates_enabled) { // including "enabled" rates?
+			    && _vcontrol_mode.flag_control_rates_enabled) {
 
-				int controller_type = _param_control_mode.get();
 				int input_mode = _param_input_mode.get();
 
 				// if (input_mode == 0) // process incoming vehicles setpoint data --> nothing to do
@@ -354,54 +325,36 @@ void UUVAttitudeControl::run()
 					_vehicle_attitude_sp.thrust_body[0] = _param_direct_thrust.get();
 				}
 
-				if (controller_type == 1) {
-					/* Geometric Control*/
-					control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
-
-				} else if (controller_type == 2 && input_mode == 1) { // feed through to actuators
-					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
-								    _param_direct_yaw.get(), _param_direct_thrust.get());
-
-				} else {
-					PX4_WARN("Invalid combination of input mode and controller\n");
-				}
-
+				/* Geometric Control*/
+				control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
 			}
 		}
 
 		loop_counter++;
 		perf_end(_loop_perf);
 
-		/* Manual Control mode (e.g. gamepad,...) - no assistance */
+		/* Manual Control mode (e.g. gamepad,...) - raw feedthrough no assistance */
 		if (fds[1].revents & POLLIN) {
 			// This should be copied even if not in manual mode. Otherwise, the poll(...) call will keep
 			// returning immediately and this loop will eat up resources.
 			orb_copy(ORB_ID(manual_control_setpoint), _manual_control_sub, &_manual);
 
-			if (manual_mode) {
+			if (_vcontrol_mode.flag_control_manual_enabled && !_vcontrol_mode.flag_control_rates_enabled) {
 				/* manual/direct control */
-				//PX4_INFO("Manual mode!");
 				constrain_actuator_commands(_manual.y, -_manual.x, _manual.r, _manual.z);
 			}
+
 		}
 
 		if (fds[2].revents & POLLIN) {
 
 			orb_copy(ORB_ID(sensor_combined), _sensor_combined_sub, &_sensor_combined);
-			int controller_type = _param_control_mode.get();
-			int input_mode = _param_input_mode.get();
 
-			if (controller_type == 3 && input_mode == 1) { // feed through to actuators
-				constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
-							    _param_direct_yaw.get(), _param_direct_thrust.get());
-			}
-
-			//orb_copy(ORB_ID(vehicle_attitude), _vehicle_attitude_sub, &_vehicle_att);
 			_actuators.timestamp = hrt_absolute_time();
 
 			/* Only publish if any of the proper modes are enabled */
-			if (_vcontrol_mode.flag_control_velocity_enabled ||	_vcontrol_mode.flag_control_attitude_enabled ||
-			    manual_mode) {
+			if (_vcontrol_mode.flag_control_manual_enabled ||
+			    _vcontrol_mode.flag_control_attitude_enabled) {
 				/* publish the actuator controls */
 				_actuator_controls_pub.publish(_actuators);
 

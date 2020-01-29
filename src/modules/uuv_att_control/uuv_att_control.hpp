@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2017 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -158,11 +158,6 @@ private:
 	uint8_t _pos_reset_counter{0};		// captures the number of times the estimator has reset the horizontal position
 
 
-	enum UUV_ATTCTRL_MODE {
-		UUV_ATTCTRL_MODE_AUTO,
-		UUV_ATTCTRL_MODE_OTHER
-	} _control_mode_current{UUV_ATTCTRL_MODE_OTHER};			///< used to check the mode in the last control loop iteration. Use to check if the last iteration was in the same mode.
-
 	bool _debug{false};	/**< if set to true, print debug output */
 	int loop_counter = 0;
 
@@ -174,7 +169,6 @@ private:
 		(ParamFloat<px4::params::UUV_YAW_P>) _param_yaw_p,
 		(ParamFloat<px4::params::UUV_YAW_D>) _param_yaw_d,
 		// control/input modes
-		(ParamInt<px4::params::UUV_CONTROL_MODE>) _param_control_mode,
 		(ParamInt<px4::params::UUV_INPUT_MODE>) _param_input_mode,
 		// direct access to inputs
 		(ParamFloat<px4::params::UUV_DIRCT_ROLL>) _param_direct_roll,

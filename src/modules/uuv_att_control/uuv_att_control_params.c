@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2017 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2013-2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -97,18 +97,7 @@ PARAM_DEFINE_FLOAT(UUV_YAW_P, 4.0f);
 PARAM_DEFINE_FLOAT(UUV_YAW_D, 2.0f);
 
 
-// Input / Control Modes
-
-/**
- * Select Control Mode
- *
- * @value 0 PID-Control
- * @value 1 Geometric-Control
- * @value 2 Direct Feedthrough
- * @group UUV Attitude Control
- */
-PARAM_DEFINE_INT32(UUV_CONTROL_MODE, 0);
-
+// Input Modes
 /**
  * Select Input Mode
  *
