@@ -273,6 +273,7 @@ void UUVAttitudeControl::run()
 	_vehicle_attitude_sp_sub = orb_subscribe(ORB_ID(vehicle_attitude_setpoint));
 	_vehicle_attitude_sub = orb_subscribe(ORB_ID(vehicle_attitude));
 	_angular_velocity_sub = orb_subscribe(ORB_ID(vehicle_angular_velocity));
+	_local_pos_sub = orb_subscribe(ORB_ID(vehicle_local_position));
 	_vcontrol_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
 
 	_manual_control_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
@@ -330,6 +331,7 @@ void UUVAttitudeControl::run()
 			/* load local copies */
 			orb_copy(ORB_ID(vehicle_attitude), _vehicle_attitude_sub, &_vehicle_attitude);
 			orb_copy(ORB_ID(vehicle_angular_velocity), _angular_velocity_sub, &_angular_velocity);
+			orb_copy(ORB_ID(vehicle_local_position), _local_pos_sub, &_local_pos);
 
 			vehicle_attitude_setpoint_poll();
 			vehicle_control_mode_poll();
@@ -360,12 +362,6 @@ void UUVAttitudeControl::run()
 					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
 								    _param_direct_yaw.get(), _param_direct_thrust.get());
 
-				/**	_actuators.control[actuator_controls_s::INDEX_ROLL] = _param_direct_roll.get();
-					_actuators.control[actuator_controls_s::INDEX_PITCH] = _param_direct_pitch.get();
-					_actuators.control[actuator_controls_s::INDEX_YAW] = _param_direct_yaw.get();
-					_actuators.control[actuator_controls_s::INDEX_THROTTLE] = _param_direct_thrust.get();
-				*/
-
 				} else {
 					PX4_WARN("Invalid combination of input mode and controller\n");
 				}
@@ -394,10 +390,12 @@ void UUVAttitudeControl::run()
 			orb_copy(ORB_ID(sensor_combined), _sensor_combined_sub, &_sensor_combined);
 			int controller_type = _param_control_mode.get();
 			int input_mode = _param_input_mode.get();
+
 			if (controller_type == 3 && input_mode == 1) { // feed through to actuators
-					constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
-								    _param_direct_yaw.get(), _param_direct_thrust.get());
+				constrain_actuator_commands(_param_direct_roll.get(), _param_direct_pitch.get(),
+							    _param_direct_yaw.get(), _param_direct_thrust.get());
 			}
+
 			//orb_copy(ORB_ID(vehicle_attitude), _vehicle_attitude_sub, &_vehicle_att);
 			_actuators.timestamp = hrt_absolute_time();
 
@@ -414,6 +412,7 @@ void UUVAttitudeControl::run()
 	orb_unsubscribe(_vcontrol_mode_sub);
 	orb_unsubscribe(_manual_control_sub);
 	orb_unsubscribe(_vehicle_attitude_sub);
+	orb_unsubscribe(_local_pos_sub);
 	orb_unsubscribe(_sensor_combined_sub);
 
 	warnx("exiting.\n");
