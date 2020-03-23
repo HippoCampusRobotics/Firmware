@@ -345,11 +345,13 @@ void UUVAttitudeControl::run()
 					_vehicle_attitude_sp.yaw_body = _param_direct_yaw.get();
 					_vehicle_attitude_sp.thrust_body[0] = _param_direct_thrust.get();
 				}
+
 				if (input_mode == 2) {
 					control_attitude_ext(_attitude_control_ext);
+
 				} else {
-				/* Geometric Control*/
-				control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
+					/* Geometric Control*/
+					control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
 				}
 			}
 		}
