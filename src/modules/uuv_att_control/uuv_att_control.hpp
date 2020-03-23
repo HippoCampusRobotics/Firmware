@@ -62,6 +62,7 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/manual_control_setpoint.h>
+#include <uORB/topics/attitude_control_ext.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/position_controller_status.h>
 #include <uORB/topics/sensor_combined.h>
@@ -129,6 +130,7 @@ private:
 	int	_manual_control_sub{-1};	/**< notification of manual control updates */
 	int	_vcontrol_mode_sub{-1};		/**< vehicle status subscription */
 	int	_sensor_combined_sub{-1};	/**< sensor combined subscription */
+	int _attitude_control_ext_sub{-1};
 
 	actuator_controls_s		_actuators {};		/**< actuator control inputs */
 	manual_control_setpoint_s	_manual {};		/**< r/c channel data */
@@ -138,6 +140,7 @@ private:
 	vehicle_control_mode_s		_vcontrol_mode {};	/**< vehicle control mode */
 	sensor_combined_s		_sensor_combined{};
 	vehicle_local_position_s	_local_pos{};		/**< vehicle local position */
+	attitude_control_ext_s _attitude_control_ext {};
 
 
 	SubscriptionData<vehicle_acceleration_s>		_vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
@@ -179,11 +182,14 @@ private:
 	void 	vehicle_attitude_poll();
 	void	vehicle_attitude_setpoint_poll();
 	void	vehicle_local_position_poll();
+	void	attitude_control_ext_poll();
 
 	/**
 	 * Control Attitude
 	 */
 	void control_attitude_geo(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp);
+
+	void control_attitude_ext(const attitude_control_ext_s &control_vals);
 
 	void control_attitude_pid(const vehicle_attitude_s &att, const vehicle_attitude_setpoint_s &att_sp, float deltaT);
 	void constrain_actuator_commands(float roll_u, float pitch_u, float yaw_u, float thrust_u);

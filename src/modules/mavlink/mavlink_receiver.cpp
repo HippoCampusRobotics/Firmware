@@ -273,6 +273,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_statustext(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ATTITUDE_CONTROL_EXT:
+		handle_message_attitude_control_ext(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -2714,6 +2718,24 @@ void MavlinkReceiver::handle_message_statustext(mavlink_message_t *msg)
 
 		_log_message_pub.publish(log_message);
 	}
+}
+
+void MavlinkReceiver::handle_message_attitude_control_ext(mavlink_message_t *msg)
+{
+	mavlink_attitude_control_ext_t man;
+	mavlink_msg_attitude_control_ext_decode(msg, &man);
+
+	struct attitude_control_ext_s key;
+	memset(&key, 0, sizeof(key));
+
+	key.timestamp = hrt_absolute_time();
+	key.thrust = man.thrust;
+	key.roll = man.roll;
+	key.pitch = man.pitch;
+	key.yaw = man.yaw;
+
+	
+	_attitude_control_ext_pub.publish(key);
 }
 
 /**

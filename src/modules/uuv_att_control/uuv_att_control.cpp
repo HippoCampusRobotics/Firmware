@@ -112,6 +112,16 @@ void UUVAttitudeControl::vehicle_attitude_setpoint_poll()
 	}
 }
 
+void UUVAttitudeControl::attitude_control_ext_poll()
+{
+	bool updated = false;
+	orb_check(_attitude_control_ext_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(attitude_control_ext), _attitude_control_ext_sub, &_attitude_control_ext);
+	}
+}
+
 
 void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u, float yaw_u, float thrust_u)
 {
@@ -162,6 +172,14 @@ void UUVAttitudeControl::constrain_actuator_commands(float roll_u, float pitch_u
 			PX4_INFO("thrust_u %.4f", (double)thrust_u);
 		}
 	}
+}
+
+void UUVAttitudeControl::control_attitude_ext(const attitude_control_ext_s &control_vals)
+{
+	constrain_actuator_commands(
+		control_vals.roll, control_vals.pitch,
+		control_vals.yaw, control_vals.thrust);
+
 }
 
 
@@ -254,6 +272,8 @@ void UUVAttitudeControl::run()
 
 	_sensor_combined_sub = orb_subscribe(ORB_ID(sensor_combined));
 
+	_attitude_control_ext_sub = orb_subscribe(ORB_ID(attitude_control_ext));
+
 
 	/* rate limit control mode updates to 5Hz */
 	orb_set_interval(_vcontrol_mode_sub, 200);
@@ -308,6 +328,7 @@ void UUVAttitudeControl::run()
 			vehicle_attitude_setpoint_poll();
 			vehicle_control_mode_poll();
 			manual_control_setpoint_poll();
+			attitude_control_ext_poll();
 
 
 			/* Run geometric attitude controllers if NOT manual mode*/
@@ -324,9 +345,12 @@ void UUVAttitudeControl::run()
 					_vehicle_attitude_sp.yaw_body = _param_direct_yaw.get();
 					_vehicle_attitude_sp.thrust_body[0] = _param_direct_thrust.get();
 				}
-
+				if (input_mode == 2) {
+					control_attitude_ext(_attitude_control_ext);
+				} else {
 				/* Geometric Control*/
 				control_attitude_geo(_vehicle_attitude, _vehicle_attitude_sp);
+				}
 			}
 		}
 
