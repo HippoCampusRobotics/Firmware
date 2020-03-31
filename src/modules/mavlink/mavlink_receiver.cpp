@@ -2738,7 +2738,7 @@ void MavlinkReceiver::handle_message_attitude_control_ext(mavlink_message_t *msg
 	key.pitch = man.pitch;
 	key.yaw = man.yaw;
 
-	
+
 	_attitude_control_ext_pub.publish(key);
 }
 
