@@ -103,6 +103,7 @@ PARAM_DEFINE_FLOAT(UUV_YAW_D, 2.0f);
  *
  * @value 0 use Attitude Setpoints
  * @value 1 Direct Feedthrough
+ * @value 2 External Attitude Control
  * @group UUV Attitude Control
  */
 PARAM_DEFINE_INT32(UUV_INPUT_MODE, 0);
