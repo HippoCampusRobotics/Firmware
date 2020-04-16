@@ -40,60 +40,47 @@ static constexpr int16_t combine(uint8_t msb, uint8_t lsb)
 	return (msb << 8u) | lsb;
 }
 
-IST8308::IST8308(int bus, uint8_t address, enum Rotation rotation) :
-	I2C(MODULE_NAME, nullptr, bus, address, I2C_SPEED),
-	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(get_device_id())),
-	_px4_mag(get_device_id(), external() ? ORB_PRIO_VERY_HIGH : ORB_PRIO_HIGH, rotation)
+IST8308::IST8308(I2CSPIBusOption bus_option, int bus, enum Rotation rotation, int bus_frequency) :
+	I2C(DRV_MAG_DEVTYPE_IST8308, MODULE_NAME, bus, I2C_ADDRESS_DEFAULT, bus_frequency),
+	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
+	_px4_mag(get_device_id(), external() ? ORB_PRIO_VERY_HIGH : ORB_PRIO_DEFAULT, rotation)
 {
-	set_device_type(DRV_MAG_DEVTYPE_IST8308);
-
-	_px4_mag.set_device_type(DRV_MAG_DEVTYPE_IST8308);
 	_px4_mag.set_external(external());
 }
 
 IST8308::~IST8308()
 {
-	Stop();
-
 	perf_free(_transfer_perf);
 	perf_free(_bad_register_perf);
 	perf_free(_bad_transfer_perf);
 }
 
-bool IST8308::Init()
+int IST8308::init()
 {
-	if (I2C::init() != PX4_OK) {
-		PX4_ERR("I2C::init failed");
-		return false;
+	int ret = I2C::init();
+
+	if (ret != PX4_OK) {
+		DEVICE_DEBUG("I2C::init failed (%i)", ret);
+		return ret;
 	}
 
-	return Reset();
-}
-
-void IST8308::Stop()
-{
-	// wait until stopped
-	while (_state.load() != STATE::STOPPED) {
-		_state.store(STATE::REQUEST_STOP);
-		ScheduleNow();
-		px4_usleep(10);
-	}
+	return Reset() ? 0 : -1;
 }
 
 bool IST8308::Reset()
 {
-	_state.store(STATE::RESET);
+	_state = STATE::RESET;
 	ScheduleClear();
 	ScheduleNow();
 	return true;
 }
 
-void IST8308::PrintInfo()
+void IST8308::print_status()
 {
+	I2CSPIDriverBase::print_status();
 	perf_print_counter(_transfer_perf);
 	perf_print_counter(_bad_register_perf);
 	perf_print_counter(_bad_transfer_perf);
-
 	_px4_mag.print_status();
 }
 
@@ -102,21 +89,21 @@ int IST8308::probe()
 	const uint8_t whoami = RegisterRead(Register::WAI);
 
 	if (whoami != Device_ID) {
-		PX4_WARN("unexpected WAI 0x%02x", whoami);
+		DEVICE_DEBUG("unexpected WAI 0x%02x", whoami);
 		return PX4_ERROR;
 	}
 
 	return PX4_OK;
 }
 
-void IST8308::Run()
+void IST8308::RunImpl()
 {
-	switch (_state.load()) {
+	switch (_state) {
 	case STATE::RESET:
 		// CNTL3: Software Reset
 		RegisterSetAndClearBits(Register::CNTL3, CNTL3_BIT::SRST, 0);
 		_reset_timestamp = hrt_absolute_time();
-		_state.store(STATE::WAIT_FOR_RESET);
+		_state = STATE::WAIT_FOR_RESET;
 		ScheduleDelayed(50_ms); // Power On Reset: max:50ms
 		break;
 
@@ -127,14 +114,14 @@ void IST8308::Run()
 		    && ((RegisterRead(Register::CNTL3) & CNTL3_BIT::SRST) == 0)) {
 
 			// if reset succeeded then configure
-			_state.store(STATE::CONFIGURE);
+			_state = STATE::CONFIGURE;
 			ScheduleNow();
 
 		} else {
 			// RESET not complete
 			if (hrt_elapsed_time(&_reset_timestamp) > 100_ms) {
 				PX4_ERR("Reset failed, retrying");
-				_state.store(STATE::RESET);
+				_state = STATE::RESET;
 				ScheduleNow();
 
 			} else {
@@ -148,7 +135,7 @@ void IST8308::Run()
 	case STATE::CONFIGURE:
 		if (Configure()) {
 			// if configure succeeded then start reading every 20 ms (50 Hz)
-			_state.store(STATE::READ);
+			_state = STATE::READ;
 			ScheduleOnInterval(20_ms, 20_ms);
 
 		} else {
@@ -203,21 +190,12 @@ void IST8308::Run()
 				} else {
 					// register check failed, force reconfigure
 					PX4_DEBUG("Health check failed, reconfiguring");
-					_state.store(STATE::CONFIGURE);
+					_state = STATE::CONFIGURE;
 					ScheduleNow();
 				}
 			}
 		}
 
-		break;
-
-	case STATE::REQUEST_STOP:
-		ScheduleClear();
-		_state.store(STATE::STOPPED);
-		break;
-
-	case STATE::STOPPED:
-		// DO NOTHING
 		break;
 	}
 }
@@ -234,7 +212,6 @@ bool IST8308::Configure()
 
 	// 1 Microtesla = 0.01 Gauss
 	_px4_mag.set_scale(1.f / 6.6f * 0.01f); // 6.6 LSB/uT
-	_px4_mag.set_temperature(NAN); // temperature not available
 
 	return success;
 }

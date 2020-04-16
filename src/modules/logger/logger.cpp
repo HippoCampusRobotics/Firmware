@@ -506,6 +506,7 @@ bool Logger::initialize_topics()
 			// if we poll on a topic, we don't use the interval and let the polled topic define the maximum interval
 			uint16_t interval_ms = _polling_topic_meta ? 0 : sub.interval_ms;
 			_subscriptions[i] = LoggerSubscription(sub.id, interval_ms, sub.instance);
+			_subscriptions[i].subscribe();
 		}
 	}
 
@@ -1557,15 +1558,22 @@ void Logger::write_all_add_logged_msg(LogType type)
 		sub_count = _num_mission_subs;
 	}
 
+	bool added_subscriptions = false;
+
 	for (int i = 0; i < sub_count; ++i) {
 		LoggerSubscription &sub = _subscriptions[i];
 
 		if (sub.valid()) {
 			write_add_logged_msg(type, sub);
+			added_subscriptions = true;
 		}
 	}
 
 	_writer.unlock();
+
+	if (!added_subscriptions) {
+		PX4_ERR("No subscriptions added"); // this results in invalid log files
+	}
 }
 
 void Logger::write_add_logged_msg(LogType type, LoggerSubscription &subscription)
@@ -1761,6 +1769,10 @@ void Logger::write_version(LogType type)
 		snprintf(mcu_ver, sizeof(mcu_ver), "%s, rev. %c", chip_name, revision);
 		write_info(type, "sys_mcu", mcu_ver);
 	}
+
+	// data versioning: increase this on every larger data change (format/semantic)
+	// 1: switch to FIFO drivers (disabled on-chip DLPF)
+	write_info(type, "ver_data_format", 1);
 
 #ifndef BOARD_HAS_NO_UUID
 

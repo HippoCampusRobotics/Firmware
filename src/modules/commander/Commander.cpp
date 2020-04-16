@@ -758,23 +758,33 @@ Commander::handle_command(vehicle_status_s *status_local, const vehicle_command_
 
 	case vehicle_command_s::VEHICLE_CMD_DO_FLIGHTTERMINATION: {
 			if (cmd.param1 > 1.5f) {
-				armed_local->lockdown = true;
-				warnx("forcing lockdown (motors off)");
+				if (!_lockdown_triggered) {
+					armed_local->lockdown = true;
+					_lockdown_triggered = true;
+					PX4_WARN("forcing lockdown (motors off)");
+				}
 
 			} else if (cmd.param1 > 0.5f) {
 				//XXX update state machine?
-				armed_local->force_failsafe = true;
-				warnx("forcing failsafe (termination)");
+				if (!_flight_termination_triggered) {
+					armed_local->force_failsafe = true;
+					_flight_termination_triggered = true;
+					PX4_WARN("forcing failsafe (termination)");
+				}
 
 				if ((int)cmd.param2 <= 0) {
 					/* reset all commanded failure modes */
-					warnx("reset all non-flighttermination failsafe commands");
+					PX4_WARN("reset all non-flighttermination failsafe commands");
 				}
 
 			} else {
 				armed_local->force_failsafe = false;
 				armed_local->lockdown = false;
-				warnx("disabling failsafe and lockdown");
+
+				_lockdown_triggered = false;
+				_flight_termination_triggered = false;
+
+				PX4_WARN("disabling failsafe and lockdown");
 			}
 
 			cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
@@ -1048,6 +1058,7 @@ Commander::handle_command(vehicle_status_s *status_local, const vehicle_command_
 	case vehicle_command_s::VEHICLE_CMD_DO_SET_CAM_TRIGG_DIST:
 	case vehicle_command_s::VEHICLE_CMD_DO_SET_CAM_TRIGG_INTERVAL:
 	case vehicle_command_s::VEHICLE_CMD_SET_CAMERA_MODE:
+	case vehicle_command_s::VEHICLE_CMD_SET_CAMERA_ZOOM:
 	case vehicle_command_s::VEHICLE_CMD_DO_CHANGE_SPEED:
 	case vehicle_command_s::VEHICLE_CMD_DO_LAND_START:
 	case vehicle_command_s::VEHICLE_CMD_DO_GO_AROUND:
@@ -1431,10 +1442,14 @@ Commander::run()
 				/* if the USB hardware connection went away, reboot */
 				if (status_flags.usb_connected && !system_power.usb_connected && shutdown_if_allowed()) {
 					/*
-					 * apparently the USB cable went away but we are still powered,
-					 * so lets reset to a classic non-usb state.
+					 * Apparently the USB cable went away but we are still powered,
+					 * so we bring the system back to a nominal state for flight.
+					 * This is important to unload the USB stack of the OS which is
+					 * a relatively complex piece of software that is non-essential
+					 * for flight and continuing to run it would add a software risk
+					 * without a need. The clean approach to unload it is to reboot.
 					 */
-					mavlink_log_critical(&mavlink_log_pub, "USB disconnected, rebooting.")
+					mavlink_log_critical(&mavlink_log_pub, "USB disconnected, rebooting for flight safety")
 					px4_usleep(400000);
 					px4_shutdown_request(true, false);
 				}
@@ -1541,6 +1556,8 @@ Commander::run()
 
 		/* Update land detector */
 		if (_land_detector_sub.updated()) {
+			_was_landed = _land_detector.landed;
+			bool was_falling = _land_detector.freefall;
 			_land_detector_sub.copy(&_land_detector);
 
 			// Only take actions if armed
@@ -1562,15 +1579,12 @@ Commander::run()
 					}
 				}
 
-				if (_was_falling != _land_detector.freefall) {
+				if (was_falling != _land_detector.freefall) {
 					if (_land_detector.freefall) {
 						mavlink_and_console_log_info(&mavlink_log_pub, "Freefall detected");
 					}
 				}
 			}
-
-			_was_landed = _land_detector.landed;
-			_was_falling = _land_detector.freefall;
 		}
 
 
@@ -1728,7 +1742,7 @@ Commander::run()
 					}
 
 				case (geofence_result_s::GF_ACTION_TERMINATE) : {
-						warnx("Flight termination because of geofence");
+						PX4_WARN("Flight termination because of geofence");
 						mavlink_log_critical(&mavlink_log_pub, "Geofence violation! Flight terminated");
 						armed.force_failsafe = true;
 						_status_changed = true;
@@ -2102,19 +2116,29 @@ Commander::run()
 		}
 
 		if (armed.armed &&
-		    failure_detector_updated &&
-		    !_flight_termination_triggered &&
-		    !status_flags.circuit_breaker_flight_termination_disabled) {
+		    failure_detector_updated) {
 
 			if (_failure_detector.isFailure()) {
+				if ((hrt_elapsed_time(&_time_at_takeoff) < 3_s) &&
+				    !_lockdown_triggered) {
+					// This handles the case where something fails during the early takeoff phase
 
-				armed.force_failsafe = true;
-				_status_changed = true;
+					armed.lockdown = true;
+					_lockdown_triggered = true;
+					_status_changed = true;
 
-				_flight_termination_triggered = true;
+					mavlink_log_emergency(&mavlink_log_pub, "Critical failure detected: lockdown");
 
-				mavlink_log_critical(&mavlink_log_pub, "Critical failure detected: terminate flight");
-				set_tune_override(TONE_PARACHUTE_RELEASE_TUNE);
+				} else if (!status_flags.circuit_breaker_flight_termination_disabled &&
+					   !_flight_termination_triggered) {
+
+					armed.force_failsafe = true;
+					_flight_termination_triggered = true;
+					_status_changed = true;
+
+					mavlink_log_emergency(&mavlink_log_pub, "Critical failure detected: terminate flight");
+					set_tune_override(TONE_PARACHUTE_RELEASE_TUNE);
+				}
 			}
 		}
 
@@ -2125,15 +2149,15 @@ Commander::run()
 		if (!_home_pub.get().manual_home) {
 			const vehicle_local_position_s &local_position = _local_position_sub.get();
 
-			if (armed.armed) {
-				if ((!_was_armed || (_was_landed && !_land_detector.landed)) &&
-				    (hrt_elapsed_time(&_boot_timestamp) > INAIR_RESTART_HOLDOFF_INTERVAL)) {
+			// set the home position when taking off, but only if we were previously disarmed
+			// and at least 500 ms from commander start spent to avoid setting home on in-air restart
+			if (_should_set_home_on_takeoff && _was_landed && !_land_detector.landed &&
+			    (hrt_elapsed_time(&_boot_timestamp) > INAIR_RESTART_HOLDOFF_INTERVAL)) {
+				_should_set_home_on_takeoff = false;
+				set_home_position();
+			}
 
-					/* update home position on arming if at least 500 ms from commander start spent to avoid setting home on in-air restart */
-					set_home_position();
-				}
-
-			} else {
+			if (!armed.armed) {
 				if (status_flags.condition_home_position_valid) {
 					if (_land_detector.landed && local_position.xy_valid && local_position.z_valid) {
 						/* distance from home */
@@ -2168,13 +2192,25 @@ Commander::run()
 		if (_was_armed != armed.armed) {
 			_status_changed = true;
 
-			if (!armed.armed) { // increase the flight uuid upon disarming
+			if (armed.armed) {
+				if (!_land_detector.landed) { // check if takeoff already detected upon arming
+					_have_taken_off_since_arming = true;
+				}
+
+			} else { // increase the flight uuid upon disarming
 				const int32_t flight_uuid = _param_flight_uuid.get() + 1;
 				_param_flight_uuid.set(flight_uuid);
 				_param_flight_uuid.commit_no_notification();
 
 				_last_disarmed_timestamp = hrt_absolute_time();
+
+				_should_set_home_on_takeoff = true;
 			}
+		}
+
+		if (!armed.armed) {
+			/* Reset the flag if disarmed. */
+			_have_taken_off_since_arming = false;
 		}
 
 		_was_armed = armed.armed;
@@ -2337,11 +2373,6 @@ Commander::run()
 		}
 
 		_status_changed = false;
-
-		if (!armed.armed) {
-			/* Reset the flag if disarmed. */
-			_have_taken_off_since_arming = false;
-		}
 
 		arm_auth_update(now, params_updated || param_init_forced);
 
@@ -2668,7 +2699,7 @@ Commander::set_main_state_rc(const vehicle_status_s &status_local, bool *changed
 	if (_sp_man.mode_slot != manual_control_setpoint_s::MODE_SLOT_NONE) {
 
 		if (_sp_man.mode_slot > manual_control_setpoint_s::MODE_SLOT_NUM) {
-			warnx("m slot overflow");
+			PX4_WARN("m slot overflow");
 			return TRANSITION_DENIED;
 		}
 
@@ -3775,13 +3806,12 @@ void Commander::battery_status_check()
 	battery_status_s batteries[ORB_MULTI_MAX_INSTANCES];
 	size_t num_connected_batteries = 0;
 
-
 	for (size_t i = 0; i < sizeof(_battery_subs) / sizeof(_battery_subs[0]); i++) {
-		if (_battery_subs[i].updated() && _battery_subs[i].copy(&batteries[num_connected_batteries])) {
-			// We need to update the status flag if ANY battery is updated, because the system source might have
-			// changed, or might be nothing (if there is no battery connected)
-			battery_sub_updated = true;
+		// We need to update the status flag if ANY battery is updated, because the system source might have
+		// changed, or might be nothing (if there is no battery connected)
+		battery_sub_updated |= _battery_subs[i].updated();
 
+		if (_battery_subs[i].copy(&batteries[num_connected_batteries])) {
 			if (batteries[num_connected_batteries].connected) {
 				num_connected_batteries++;
 			}
@@ -3801,6 +3831,8 @@ void Commander::battery_status_check()
 	// oldest timestamp.
 	hrt_abstime oldest_update = hrt_absolute_time();
 
+	_battery_current = 0.0f;
+
 	// Only iterate over connected batteries. We don't care if a disconnected battery is not regularly publishing.
 	for (size_t i = 0; i < num_connected_batteries; i++) {
 		if (batteries[i].warning > worst_warning) {
@@ -3811,9 +3843,8 @@ void Commander::battery_status_check()
 			oldest_update = batteries[i].timestamp;
 		}
 
-		if (batteries[i].system_source) {
-			_battery_current = batteries[i].current_filtered_a;
-		}
+		// Sum up current from all batteries.
+		_battery_current += batteries[i].current_filtered_a;
 	}
 
 	bool battery_warning_level_increased_while_armed = false;

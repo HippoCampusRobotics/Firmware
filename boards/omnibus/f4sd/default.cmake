@@ -20,10 +20,8 @@ px4_add_board(
 		#distance_sensor # all available distance sensor drivers
 		dshot
 		gps
-		#heater
-		#imu # all available imu drivers
-		imu/mpu6000
 		imu/invensense/icm20602
+		imu/invensense/mpu6000
 		#irlock
 		#lights/blinkm
 		lights/rgbled
@@ -35,7 +33,7 @@ px4_add_board(
 		#pca9685
 		#pwm_input
 		#pwm_out_sim
-		px4fmu
+		pwm_out
 		rc_input
 		#tap_esc
 		#telemetry # all available telemetry drivers
@@ -72,7 +70,6 @@ px4_add_board(
 		#vtol_att_control
 	SYSTEMCMDS
 		#bl_update
-		config
 		dmesg
 		dumpfile
 		esc_calib
@@ -93,7 +90,7 @@ px4_add_board(
 		shutdown
 		#tests # tests and test runner
 		top
-		topic_listener
+		#topic_listener
 		tune_control
 		usb_connected
 		ver
@@ -107,4 +104,5 @@ px4_add_board(
 		#px4_simple_app # Tutorial code from http://dev.px4.io/en/apps/hello_sky.html
 		#rover_steering_control # Rover example app
 		#uuv_example_app
+		#work_item
 	)

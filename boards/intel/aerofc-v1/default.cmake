@@ -17,7 +17,7 @@ px4_add_board(
 		#differential_pressure # all available differential pressure drivers
 		distance_sensor
 		gps
-		imu/mpu9250
+		imu/invensense/mpu9250
 		#irlock
 		#magnetometer # all available magnetometer drivers
 		magnetometer/hmc5883
@@ -25,7 +25,7 @@ px4_add_board(
 		#optical_flow/px4flow
 		#protocol_splitter
 		pwm_out_sim
-		px4fmu
+		pwm_out
 		rc_input
 		tap_esc
 		#telemetry # all available telemetry drivers
@@ -62,7 +62,6 @@ px4_add_board(
 		#vtol_att_control
 	SYSTEMCMDS
 		bl_update
-		config
 		#dmesg
 		dumpfile
 		esc_calib
@@ -96,4 +95,5 @@ px4_add_board(
 		#px4_simple_app # Tutorial code from http://dev.px4.io/en/apps/hello_sky.html
 		#rover_steering_control # Rover example app
 		#uuv_example_app
+		#work_item
 	)

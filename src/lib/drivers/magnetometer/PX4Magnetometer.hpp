@@ -50,6 +50,8 @@ public:
 
 	int	ioctl(cdev::file_t *filp, int cmd, unsigned long arg) override;
 
+	bool external() { return _sensor_mag_pub.get().is_external; }
+
 	void set_device_type(uint8_t devtype);
 	void set_error_count(uint64_t error_count) { _sensor_mag_pub.get().error_count = error_count; }
 	void increase_error_count() { _sensor_mag_pub.get().error_count++; }
@@ -59,6 +61,8 @@ public:
 	void set_sensitivity(float x, float y, float z) { _sensitivity = matrix::Vector3f{x, y, z}; }
 
 	void update(hrt_abstime timestamp_sample, float x, float y, float z);
+
+	int get_class_instance() { return _class_device_instance; };
 
 	void print_status();
 

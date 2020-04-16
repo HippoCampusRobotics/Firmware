@@ -80,6 +80,8 @@ bool PreFlightCheck::preflightCheck(orb_advert_t *mavlink_log_pub, vehicle_statu
 
 	bool failed = false;
 
+	failed = failed || !airframeCheck(mavlink_log_pub, status);
+
 	/* ---- MAG ---- */
 	if (checkSensors) {
 		int32_t sys_has_mag = 1;
@@ -99,7 +101,7 @@ bool PreFlightCheck::preflightCheck(orb_advert_t *mavlink_log_pub, vehicle_statu
 
 				int32_t device_id = -1;
 
-				if (magnometerCheck(mavlink_log_pub, status, i, !required, device_id, report_fail)) {
+				if (magnetometerCheck(mavlink_log_pub, status, i, !required, device_id, report_fail)) {
 
 					if ((prime_id > 0) && (device_id == prime_id)) {
 						prime_found = true;
@@ -294,6 +296,9 @@ bool PreFlightCheck::preflightCheck(orb_advert_t *mavlink_log_pub, vehicle_statu
 	if (!failureDetectorCheck(mavlink_log_pub, status, reportFailures, prearm)) {
 		failed = true;
 	}
+
+	failed = failed || !manualControlCheck(mavlink_log_pub, reportFailures);
+	failed = failed || !cpuResourceCheck(mavlink_log_pub, reportFailures);
 
 	/* Report status */
 	return !failed;

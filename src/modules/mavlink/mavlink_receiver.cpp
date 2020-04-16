@@ -529,6 +529,28 @@ void MavlinkReceiver::handle_message_command_both(mavlink_message_t *msg, const 
 			result = vehicle_command_ack_s::VEHICLE_RESULT_DENIED;
 		}
 
+	} else if (cmd_mavlink.command == MAV_CMD_SET_CAMERA_ZOOM) {
+		struct actuator_controls_s actuator_controls = {};
+		actuator_controls.timestamp = hrt_absolute_time();
+
+		for (size_t i = 0; i < 8; i++) {
+			actuator_controls.control[i] = NAN;
+		}
+
+		switch ((int)(cmd_mavlink.param1 + 0.5f)) {
+		case vehicle_command_s::VEHICLE_CAMERA_ZOOM_TYPE_RANGE:
+			actuator_controls.control[actuator_controls_s::INDEX_CAMERA_ZOOM] = cmd_mavlink.param2 / 50.0f - 1.0f;
+			break;
+
+		case vehicle_command_s::VEHICLE_CAMERA_ZOOM_TYPE_STEP:
+		case vehicle_command_s::VEHICLE_CAMERA_ZOOM_TYPE_CONTINUOUS:
+		case vehicle_command_s::VEHICLE_CAMERA_ZOOM_TYPE_FOCAL_LENGTH:
+		default:
+			send_ack = false;
+		}
+
+		_actuator_controls_pubs[actuator_controls_s::GROUP_INDEX_GIMBAL].publish(actuator_controls);
+
 	} else {
 
 		send_ack = false;
@@ -1379,6 +1401,7 @@ void MavlinkReceiver::fill_thrust(float *thrust_body_array, uint8_t vehicle_type
 	case MAV_TYPE_OCTOROTOR:
 	case MAV_TYPE_TRICOPTER:
 	case MAV_TYPE_HELICOPTER:
+	case MAV_TYPE_COAXIAL:
 		thrust_body_array[2] = -thrust;
 		break;
 
@@ -2830,10 +2853,16 @@ MavlinkReceiver::Run()
 			updateParams();
 		}
 
-		if (poll(&fds[0], 1, timeout) > 0) {
+		int ret = poll(&fds[0], 1, timeout);
+
+		if (ret > 0) {
 			if (_mavlink->get_protocol() == Protocol::SERIAL) {
 				/* non-blocking read. read may return negative values */
 				nread = ::read(fds[0].fd, buf, sizeof(buf));
+
+				if (nread == -1 && errno == ENOTCONN) { // Not connected (can happen for USB)
+					usleep(100000);
+				}
 			}
 
 #if defined(MAVLINK_UDP)
@@ -2916,6 +2945,9 @@ MavlinkReceiver::Run()
 			}
 
 #endif // MAVLINK_UDP
+
+		} else if (ret == -1) {
+			usleep(10000);
 		}
 
 		hrt_abstime t = hrt_absolute_time();

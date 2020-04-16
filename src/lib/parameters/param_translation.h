@@ -35,5 +35,4 @@
 
 #include "tinybson/tinybson.h"
 
-__EXPORT bool param_modify_on_import(const char *name, bson_type_t type, void *value);
-
+__EXPORT bool param_modify_on_import(bson_node_t node);
