@@ -123,6 +123,7 @@ private:
 	uORB::Subscription	_parameter_update_sub{ORB_ID(parameter_update)};
 
 	int	_vehicle_attitude_sp_sub{-1};	/**< vehicle attitude setpoint */
+	int _vehicle_rates_setpoint_sub{-1};
 	int	_battery_status_sub{-1};	/**< battery status subscription */
 	int	_vehicle_attitude_sub{-1};	/**< control state subscription */
 	int	_angular_velocity_sub{-1};	/**< vehicle angular velocity subscription */
@@ -137,6 +138,7 @@ private:
 	vehicle_attitude_s		_vehicle_attitude {};	/**< control state */
 	vehicle_angular_velocity_s	_angular_velocity{};	/**< angular velocity */
 	vehicle_attitude_setpoint_s	_vehicle_attitude_sp {};/**< vehicle attitude setpoint */
+	vehicle_rates_setpoint_s _vehicle_rates_sp {}; /**< vehicle rates setpoint */
 	vehicle_control_mode_s		_vcontrol_mode {};	/**< vehicle control mode */
 	sensor_combined_s		_sensor_combined{};
 	vehicle_local_position_s	_local_pos{};		/**< vehicle local position */
@@ -181,6 +183,7 @@ private:
 	void	vehicle_control_mode_poll();
 	void 	vehicle_attitude_poll();
 	void	vehicle_attitude_setpoint_poll();
+	void	vehicle_rates_setpoint_poll();
 	void	vehicle_local_position_poll();
 	void	attitude_control_ext_poll();
 
