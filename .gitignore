@@ -1,3 +1,4 @@
+.devcontainer
 *.dSYM
 *.o
 *.gch
