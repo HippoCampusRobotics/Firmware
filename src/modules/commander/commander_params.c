@@ -569,7 +569,7 @@ PARAM_DEFINE_FLOAT(COM_ARM_EKF_YAW, 0.5f);
  * @decimal 4
  * @increment 0.0001
  */
-PARAM_DEFINE_FLOAT(COM_ARM_EKF_AB, 1.73e-3f);
+PARAM_DEFINE_FLOAT(COM_ARM_EKF_AB, 0.0022f);
 
 /**
  * Maximum value of EKF gyro delta angle bias estimate that will allow arming
@@ -578,10 +578,10 @@ PARAM_DEFINE_FLOAT(COM_ARM_EKF_AB, 1.73e-3f);
  * @unit rad
  * @min 0.0001
  * @max 0.0017
- * @decimal 5
+ * @decimal 4
  * @increment 0.0001
  */
-PARAM_DEFINE_FLOAT(COM_ARM_EKF_GB, 8.7e-4f);
+PARAM_DEFINE_FLOAT(COM_ARM_EKF_GB, 0.0011f);
 
 /**
  * Maximum accelerometer inconsistency between IMU units that will allow arming
@@ -901,7 +901,7 @@ PARAM_DEFINE_INT32(COM_MOT_TEST_EN, 1);
 PARAM_DEFINE_FLOAT(COM_KILL_DISARM, 5.0f);
 
 /**
- * Maximum allowed CPU load to still allow arming
+ * Maximum allowed CPU load to still arm
  *
  * A negative value disables the check.
  *

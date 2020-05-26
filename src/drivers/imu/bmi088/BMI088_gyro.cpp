@@ -60,11 +60,13 @@ BMI088_gyro::BMI088_gyro(I2CSPIBusOption bus_option, int bus, const char *path_g
 			 enum Rotation rotation, int bus_frequency, spi_mode_e spi_mode) :
 	BMI088("bmi088_gyro", path_gyro, bus_option, bus, DRV_GYR_DEVTYPE_BMI088, device, spi_mode, bus_frequency,
 	       rotation),
-	_px4_gyro(get_device_id(), (external() ? ORB_PRIO_MAX - 1 : ORB_PRIO_HIGH - 1), rotation),
+	_px4_gyro(get_device_id(), (external() ? ORB_PRIO_VERY_HIGH : ORB_PRIO_DEFAULT), rotation),
 	_sample_perf(perf_alloc(PC_ELAPSED, "bmi088_gyro_read")),
 	_bad_transfers(perf_alloc(PC_COUNT, "bmi088_gyro_bad_transfers")),
-	_bad_registers(perf_alloc(PC_COUNT, "bmi088_gyro_bad_registers"))
+	_bad_registers(perf_alloc(PC_COUNT, "bmi088_gyro_bad_registers")),
+	_duplicates(perf_alloc(PC_COUNT, "bmi088_gyro_duplicates"))
 {
+	_px4_gyro.set_update_rate(BMI088_GYRO_DEFAULT_RATE);
 }
 
 BMI088_gyro::~BMI088_gyro()
@@ -73,6 +75,7 @@ BMI088_gyro::~BMI088_gyro()
 	perf_free(_sample_perf);
 	perf_free(_bad_transfers);
 	perf_free(_bad_registers);
+	perf_free(_duplicates);
 }
 
 int
@@ -104,7 +107,8 @@ int BMI088_gyro::reset()
 
 	//Enable Gyroscope in normal mode
 	write_reg(BMI088_GYR_LPM1, BMI088_GYRO_NORMAL);
-	up_udelay(1000);
+
+	px4_usleep(1000);
 
 	uint8_t retries = 10;
 
@@ -262,7 +266,7 @@ void
 BMI088_gyro::start()
 {
 	/* start polling at the specified rate */
-	ScheduleOnInterval((1_s / BMI088_GYRO_DEFAULT_RATE) - BMI088_TIMER_REDUCTION, 1000);
+	ScheduleOnInterval((1_s / BMI088_GYRO_DEFAULT_RATE) / 2, 1000);
 }
 
 void
@@ -366,6 +370,18 @@ BMI088_gyro::RunImpl()
 		return;
 	}
 
+	// don't publish duplicated reads
+	if ((report.gyro_x == _gyro_prev[0]) && (report.gyro_y == _gyro_prev[1]) && (report.gyro_z == _gyro_prev[2])) {
+		perf_count(_duplicates);
+		perf_end(_sample_perf);
+		return;
+
+	} else {
+		_gyro_prev[0] = report.gyro_x;
+		_gyro_prev[1] = report.gyro_y;
+		_gyro_prev[2] = report.gyro_z;
+	}
+
 	// report the error count as the sum of the number of bad
 	// transfers and bad register reads. This allows the higher
 	// level code to decide if it should use this sensor based on
@@ -405,6 +421,7 @@ BMI088_gyro::print_status()
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_bad_transfers);
 	perf_print_counter(_bad_registers);
+	perf_print_counter(_duplicates);
 
 	::printf("checked_next: %u\n", _checked_next);
 

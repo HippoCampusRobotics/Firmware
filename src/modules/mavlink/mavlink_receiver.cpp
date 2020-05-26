@@ -82,6 +82,7 @@ using matrix::wrap_2pi;
 
 MavlinkReceiver::~MavlinkReceiver()
 {
+	delete _tune_publisher;
 	delete _px4_accel;
 	delete _px4_baro;
 	delete _px4_gyro;
@@ -235,6 +236,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 
 	case MAVLINK_MSG_ID_PLAY_TUNE:
 		handle_message_play_tune(msg);
+		break;
+
+	case MAVLINK_MSG_ID_PLAY_TUNE_V2:
+		handle_message_play_tune_v2(msg);
 		break;
 
 	case MAVLINK_MSG_ID_OBSTACLE_DISTANCE:
@@ -776,7 +781,9 @@ MavlinkReceiver::handle_message_att_pos_mocap(mavlink_message_t *msg)
 
 	vehicle_odometry_s mocap_odom{};
 
-	mocap_odom.timestamp = _mavlink_timesync.sync_stamp(mocap.time_usec);
+	mocap_odom.timestamp = hrt_absolute_time();
+	mocap_odom.timestamp_sample = _mavlink_timesync.sync_stamp(mocap.time_usec);
+
 	mocap_odom.x = mocap.x;
 	mocap_odom.y = mocap.y;
 	mocap_odom.z = mocap.z;
@@ -793,6 +800,7 @@ MavlinkReceiver::handle_message_att_pos_mocap(mavlink_message_t *msg)
 		mocap_odom.pose_covariance[i] = mocap.covariance[i];
 	}
 
+	mocap_odom.velocity_frame = vehicle_odometry_s::LOCAL_FRAME_FRD;
 	mocap_odom.vx = NAN;
 	mocap_odom.vy = NAN;
 	mocap_odom.vz = NAN;
@@ -1254,7 +1262,9 @@ MavlinkReceiver::handle_message_vision_position_estimate(mavlink_message_t *msg)
 
 	vehicle_odometry_s visual_odom{};
 
-	visual_odom.timestamp = _mavlink_timesync.sync_stamp(ev.usec);
+	visual_odom.timestamp = hrt_absolute_time();
+	visual_odom.timestamp_sample = _mavlink_timesync.sync_stamp(ev.usec);
+
 	visual_odom.x = ev.x;
 	visual_odom.y = ev.y;
 	visual_odom.z = ev.z;
@@ -1265,7 +1275,7 @@ MavlinkReceiver::handle_message_vision_position_estimate(mavlink_message_t *msg)
 	// - add a MAV_FRAME_*_OTHER to the Mavlink MAV_FRAME enum IOT define
 	// a frame of reference which is not aligned with NED or ENU
 	// - add usage on the estimator side
-	visual_odom.local_frame = visual_odom.LOCAL_FRAME_NED;
+	visual_odom.local_frame = vehicle_odometry_s::LOCAL_FRAME_NED;
 
 	const size_t URT_SIZE = sizeof(visual_odom.pose_covariance) / sizeof(visual_odom.pose_covariance[0]);
 	static_assert(URT_SIZE == (sizeof(ev.covariance) / sizeof(ev.covariance[0])),
@@ -1275,6 +1285,7 @@ MavlinkReceiver::handle_message_vision_position_estimate(mavlink_message_t *msg)
 		visual_odom.pose_covariance[i] = ev.covariance[i];
 	}
 
+	visual_odom.velocity_frame = vehicle_odometry_s::LOCAL_FRAME_FRD;
 	visual_odom.vx = NAN;
 	visual_odom.vy = NAN;
 	visual_odom.vz = NAN;
@@ -1294,7 +1305,8 @@ MavlinkReceiver::handle_message_odometry(mavlink_message_t *msg)
 
 	vehicle_odometry_s odometry{};
 
-	odometry.timestamp = _mavlink_timesync.sync_stamp(odom.time_usec);
+	odometry.timestamp = hrt_absolute_time();
+	odometry.timestamp_sample = _mavlink_timesync.sync_stamp(odom.time_usec);
 
 	/* The position is in a local FRD frame */
 	odometry.x = odom.x;
@@ -1310,7 +1322,7 @@ MavlinkReceiver::handle_message_odometry(mavlink_message_t *msg)
 	// TODO:
 	// add usage of this information on the estimator side
 	// The heading of the local frame is not aligned with north
-	odometry.local_frame = odometry.LOCAL_FRAME_FRD;
+	odometry.local_frame = vehicle_odometry_s::LOCAL_FRAME_FRD;
 
 	// pose_covariance
 	static constexpr size_t POS_URT_SIZE = sizeof(odometry.pose_covariance) / sizeof(odometry.pose_covariance[0]);
@@ -1334,39 +1346,19 @@ MavlinkReceiver::handle_message_odometry(mavlink_message_t *msg)
 	 * body (fcu_frd) frame.
 	 */
 	if (odom.child_frame_id == MAV_FRAME_BODY_FRD) {
-		/* Linear velocity has to be rotated to the local NED frame
-		 * Angular velocities are already in the right body frame  */
-		const matrix::Dcmf R_body_to_local = matrix::Dcmf(q_body_to_local);
 
-		/* the linear velocities needs to be transformed to the local frame FRD*/
-		matrix::Vector3<float> linvel_local(R_body_to_local * matrix::Vector3<float>(odom.vx, odom.vy, odom.vz));
-
-		odometry.vx = linvel_local(0);
-		odometry.vy = linvel_local(1);
-		odometry.vz = linvel_local(2);
+		odometry.velocity_frame = vehicle_odometry_s::BODY_FRAME_FRD;
+		odometry.vx = odom.vx;
+		odometry.vy = odom.vy;
+		odometry.vz = odom.vz;
 
 		odometry.rollspeed = odom.rollspeed;
 		odometry.pitchspeed = odom.pitchspeed;
 		odometry.yawspeed = odom.yawspeed;
 
-		/* the linear velocity's covariance needs to be transformed to the local frame FRD*/
-		matrix::Matrix3f lin_vel_cov_body;
-		lin_vel_cov_body(0, 0) = odom.velocity_covariance[odometry.COVARIANCE_MATRIX_VX_VARIANCE];
-		lin_vel_cov_body(0, 1) = lin_vel_cov_body(1, 0) = odom.velocity_covariance[1];
-		lin_vel_cov_body(0, 2) = lin_vel_cov_body(2, 0) = odom.velocity_covariance[2];
-		lin_vel_cov_body(1, 1) = odom.velocity_covariance[odometry.COVARIANCE_MATRIX_VY_VARIANCE];
-		lin_vel_cov_body(1, 2) = lin_vel_cov_body(2, 1) = odom.velocity_covariance[7];
-		lin_vel_cov_body(2, 2) = odom.velocity_covariance[odometry.COVARIANCE_MATRIX_VZ_VARIANCE];
-		matrix::Matrix3f lin_vel_cov_local = R_body_to_local * lin_vel_cov_body * R_body_to_local.transpose();
-
-		/* Only the linear velocity variance elements are used */
 		for (size_t i = 0; i < VEL_URT_SIZE; i++) {
-			odometry.velocity_covariance[i] = NAN;
+			odometry.velocity_covariance[i] = odom.velocity_covariance[i];
 		}
-
-		odometry.velocity_covariance[odometry.COVARIANCE_MATRIX_VX_VARIANCE] = lin_vel_cov_local(0, 0);
-		odometry.velocity_covariance[odometry.COVARIANCE_MATRIX_VY_VARIANCE] = lin_vel_cov_local(1, 1);
-		odometry.velocity_covariance[odometry.COVARIANCE_MATRIX_VZ_VARIANCE] = lin_vel_cov_local(2, 2);
 
 	} else {
 		PX4_ERR("Body frame %u not supported. Unable to publish velocity", odom.child_frame_id);
@@ -1766,23 +1758,57 @@ MavlinkReceiver::handle_message_play_tune(mavlink_message_t *msg)
 	mavlink_play_tune_t play_tune;
 	mavlink_msg_play_tune_decode(msg, &play_tune);
 
-	char *tune = play_tune.tune;
+	if ((mavlink_system.sysid == play_tune.target_system || play_tune.target_system == 0) &&
+	    (mavlink_system.compid == play_tune.target_component || play_tune.target_component == 0)) {
 
-	if ((mavlink_system.sysid == play_tune.target_system ||
-	     play_tune.target_system == 0) &&
-	    (mavlink_system.compid == play_tune.target_component ||
-	     play_tune.target_component == 0)) {
+		// Let's make sure the input is 0 terminated, so we don't ever overrun it.
+		play_tune.tune2[sizeof(play_tune.tune2) - 1] = '\0';
 
-		if (*tune == 'M') {
-			int fd = px4_open(TONE_ALARM0_DEVICE_PATH, PX4_F_WRONLY);
-
-			if (fd >= 0) {
-				px4_write(fd, tune, strlen(tune) + 1);
-				px4_close(fd);
-			}
-		}
+		schedule_tune(play_tune.tune);
 	}
 }
+
+void
+MavlinkReceiver::handle_message_play_tune_v2(mavlink_message_t *msg)
+{
+	mavlink_play_tune_v2_t play_tune_v2;
+	mavlink_msg_play_tune_v2_decode(msg, &play_tune_v2);
+
+	if ((mavlink_system.sysid == play_tune_v2.target_system || play_tune_v2.target_system == 0) &&
+	    (mavlink_system.compid == play_tune_v2.target_component || play_tune_v2.target_component == 0)) {
+
+		if (play_tune_v2.format != TUNE_FORMAT_QBASIC1_1) {
+			PX4_ERR("Tune format %d not supported", play_tune_v2.format);
+			return;
+		}
+
+		// Let's make sure the input is 0 terminated, so we don't ever overrun it.
+		play_tune_v2.tune[sizeof(play_tune_v2.tune) - 1] = '\0';
+
+		schedule_tune(play_tune_v2.tune);
+	}
+}
+
+void MavlinkReceiver::schedule_tune(const char *tune)
+{
+	// We only allocate the TunePublisher object if we ever use it but we
+	// don't remove it to avoid fragmentation over time.
+	if (_tune_publisher == nullptr) {
+		_tune_publisher = new TunePublisher();
+
+		if (_tune_publisher == nullptr) {
+			PX4_ERR("Could not allocate tune publisher");
+			return;
+		}
+	}
+
+	const hrt_abstime now = hrt_absolute_time();
+
+	_tune_publisher->set_tune_string(tune, now);
+	// Send first one straightaway.
+	_tune_publisher->publish_next_tune(now);
+}
+
 
 void
 MavlinkReceiver::handle_message_obstacle_distance(mavlink_message_t *msg)
@@ -2160,6 +2186,9 @@ MavlinkReceiver::handle_message_hil_sensor(mavlink_message_t *msg)
 
 			if (_px4_gyro == nullptr) {
 				PX4_ERR("PX4Gyroscope alloc failed");
+
+			} else {
+				_px4_gyro->set_update_rate(200); // TODO: measure actual
 			}
 		}
 
@@ -2177,6 +2206,9 @@ MavlinkReceiver::handle_message_hil_sensor(mavlink_message_t *msg)
 
 			if (_px4_accel == nullptr) {
 				PX4_ERR("PX4Accelerometer alloc failed");
+
+			} else {
+				_px4_accel->set_update_rate(200); // TODO: measure actual
 			}
 		}
 
@@ -2304,6 +2336,18 @@ MavlinkReceiver::handle_message_landing_target(mavlink_message_t *msg)
 		landing_target_pose.z_abs = landing_target.z;
 
 		_landing_target_pose_pub.publish(landing_target_pose);
+
+	} else {
+		irlock_report_s irlock_report{};
+
+		irlock_report.timestamp = hrt_absolute_time();
+		irlock_report.signature = landing_target.target_num;
+		irlock_report.pos_x = landing_target.angle_x;
+		irlock_report.pos_y = landing_target.angle_y;
+		irlock_report.size_x = landing_target.size_x;
+		irlock_report.size_y = landing_target.size_y;
+
+		_irlock_report_pub.publish(irlock_report);
 	}
 }
 
@@ -2966,6 +3010,9 @@ MavlinkReceiver::Run()
 			last_send_update = t;
 		}
 
+		if (_tune_publisher != nullptr) {
+			_tune_publisher->publish_next_tune(t);
+		}
 	}
 }
 

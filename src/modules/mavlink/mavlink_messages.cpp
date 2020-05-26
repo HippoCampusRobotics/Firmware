@@ -1540,7 +1540,7 @@ protected:
 			_airspeed_validated_sub.copy(&airspeed_validated);
 
 			mavlink_vfr_hud_t msg{};
-			msg.airspeed = airspeed_validated.indicated_airspeed_m_s;
+			msg.airspeed = airspeed_validated.equivalent_airspeed_m_s;
 			msg.groundspeed = sqrtf(lpos.vx * lpos.vx + lpos.vy * lpos.vy);
 			msg.heading = math::degrees(wrap_2pi(lpos.yaw));
 
@@ -2558,7 +2558,7 @@ protected:
 		}
 
 		if (odom_updated) {
-			msg.time_usec = odom.timestamp;
+			msg.time_usec = odom.timestamp_sample;
 			msg.child_frame_id = MAV_FRAME_BODY_FRD;
 
 			// Current position
@@ -2572,16 +2572,27 @@ protected:
 			msg.q[2] = odom.q[2];
 			msg.q[3] = odom.q[3];
 
-			// Body-FRD frame to local NED frame Dcm matrix
-			matrix::Dcmf R_body_to_local(matrix::Quatf(odom.q));
+			switch (odom.velocity_frame) {
+			case vehicle_odometry_s::BODY_FRAME_FRD:
+				msg.vx = odom.vx;
+				msg.vy = odom.vy;
+				msg.vz = odom.vz;
+				break;
 
-			// Rotate linear and angular velocity from local NED to body-NED frame
-			matrix::Vector3f linvel_body(R_body_to_local.transpose() * matrix::Vector3f(odom.vx, odom.vy, odom.vz));
+			case vehicle_odometry_s::LOCAL_FRAME_FRD:
+			case vehicle_odometry_s::LOCAL_FRAME_NED:
+				// Body frame to local frame
+				const matrix::Dcmf R_body_to_local(matrix::Quatf(odom.q));
 
-			// Current linear velocity
-			msg.vx = linvel_body(0);
-			msg.vy = linvel_body(1);
-			msg.vz = linvel_body(2);
+				// Rotate linear velocity from local to body frame
+				const matrix::Vector3f linvel_body(R_body_to_local.transpose() *
+								   matrix::Vector3f(odom.vx, odom.vy, odom.vz));
+
+				msg.vx = linvel_body(0);
+				msg.vy = linvel_body(1);
+				msg.vz = linvel_body(2);
+				break;
+			}
 
 			// Current body rates
 			msg.rollspeed = odom.rollspeed;
@@ -2972,7 +2983,7 @@ protected:
 		if (_mocap_sub.update(&mocap)) {
 			mavlink_att_pos_mocap_t msg{};
 
-			msg.time_usec = mocap.timestamp;
+			msg.time_usec = mocap.timestamp_sample;
 			msg.q[0] = mocap.q[0];
 			msg.q[1] = mocap.q[1];
 			msg.q[2] = mocap.q[2];
@@ -4925,10 +4936,10 @@ public:
 	}
 
 private:
-	uORB::Subscription _angular_velocity_sub{ORB_ID(vehicle_angular_velocity)};
-	uORB::Subscription _att_sub{ORB_ID(vehicle_attitude)};
-	uORB::Subscription _gpos_sub{ORB_ID(vehicle_global_position)};
-	uORB::Subscription _lpos_sub{ORB_ID(vehicle_local_position)};
+	uORB::Subscription _angular_velocity_sub{ORB_ID(vehicle_angular_velocity_groundtruth)};
+	uORB::Subscription _att_sub{ORB_ID(vehicle_attitude_groundtruth)};
+	uORB::Subscription _gpos_sub{ORB_ID(vehicle_global_position_groundtruth)};
+	uORB::Subscription _lpos_sub{ORB_ID(vehicle_local_position_groundtruth)};
 
 	/* do not allow top copying this class */
 	MavlinkStreamGroundTruth(MavlinkStreamGroundTruth &) = delete;

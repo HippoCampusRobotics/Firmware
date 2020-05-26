@@ -81,6 +81,8 @@
 #include <v2.0/mavlink_types.h>
 #include <lib/battery/battery.h>
 
+using namespace time_literals;
+
 //! Enumeration to use on the bitmask in HIL_SENSOR
 enum class SensorSource {
 	ACCEL		= 0b111,
@@ -133,6 +135,9 @@ public:
 private:
 	Simulator() : ModuleParams(nullptr)
 	{
+		// current default
+		_px4_accel.set_update_rate(250);
+		_px4_gyro.set_update_rate(250);
 	}
 
 	~Simulator()
@@ -190,7 +195,10 @@ private:
 	class SimulatorBattery : public Battery
 	{
 	public:
-		SimulatorBattery() : Battery(1, nullptr) {}
+		static constexpr uint32_t SIMLATOR_BATTERY_SAMPLE_FREQUENCY_HZ = 100; // Hz
+		static constexpr uint32_t SIMLATOR_BATTERY_SAMPLE_INTERVAL_US = 1_s / SIMLATOR_BATTERY_SAMPLE_FREQUENCY_HZ;
+
+		SimulatorBattery() : Battery(1, nullptr, SIMLATOR_BATTERY_SAMPLE_INTERVAL_US) {}
 
 		virtual void updateParams() override
 		{
@@ -278,7 +286,7 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::SIM_BAT_DRAIN>) _param_sim_bat_drain, ///< battery drain interval
-		(ParamFloat<px4::params::SIM_BAT_MIN_PCT>) _battery_min_percentage, //< minimum battery percentage
+		(ParamFloat<px4::params::SIM_BAT_MIN_PCT>) _param_bat_min_pct, //< minimum battery percentage
 		(ParamFloat<px4::params::SIM_GPS_NOISE_X>) _param_sim_gps_noise_x,
 		(ParamBool<px4::params::SIM_GPS_BLOCK>) _param_sim_gps_block,
 		(ParamBool<px4::params::SIM_ACCEL_BLOCK>) _param_sim_accel_block,
