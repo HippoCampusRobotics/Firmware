@@ -41,6 +41,7 @@ set(msg_files
 	adc_report.msg
 	airspeed.msg
 	airspeed_validated.msg
+	attitude_control_ext.msg
 	battery_status.msg
 	camera_capture.msg
 	camera_trigger.msg
@@ -82,6 +83,7 @@ set(msg_files
 	mavlink_log.msg
 	mission.msg
 	mission_result.msg
+	mixer_feedthrough.msg
 	mount_orientation.msg
 	multirotor_motor_limits.msg
 	obstacle_distance.msg

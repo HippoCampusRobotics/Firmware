@@ -271,6 +271,14 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_statustext(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ATTITUDE_CONTROL_EXT:
+		handle_message_attitude_control_ext(msg);
+		break;
+
+	case MAVLINK_MSG_ID_MIXER_FEEDTHROUGH:
+		handle_message_mixer_feedthrough(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -2745,6 +2753,41 @@ void MavlinkReceiver::handle_message_statustext(mavlink_message_t *msg)
 
 		_log_message_pub.publish(log_message);
 	}
+}
+
+void MavlinkReceiver::handle_message_attitude_control_ext(mavlink_message_t *msg)
+{
+	mavlink_attitude_control_ext_t man;
+	mavlink_msg_attitude_control_ext_decode(msg, &man);
+
+	struct attitude_control_ext_s key;
+	memset(&key, 0, sizeof(key));
+
+	key.timestamp = hrt_absolute_time();
+	key.thrust = man.thrust;
+	key.roll = man.roll;
+	key.pitch = man.pitch;
+	key.yaw = man.yaw;
+
+
+	_attitude_control_ext_pub.publish(key);
+}
+
+void MavlinkReceiver::handle_message_mixer_feedthrough(mavlink_message_t *msg)
+{
+	mavlink_mixer_feedthrough_t man;
+	mavlink_msg_mixer_feedthrough_decode(msg, &man);
+
+	struct mixer_feedthrough_s key;
+	memset(&key, 0, sizeof(key));
+
+	key.timestamp = hrt_absolute_time();
+	key.motor_ul = man.motor_ul;
+	key.motor_ur = man.motor_ur;
+	key.motor_ll = man.motor_ll;
+	key.motor_lr = man.motor_lr;
+
+	_mixer_feedthrough_pub.publish(key);
 }
 
 /**
